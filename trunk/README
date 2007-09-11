@@ -1,0 +1,31 @@
+	*** Erlinda v0.01 - Parallel computing framework for Erlang ***
+			released November 31, 2007
+
+Thank you for downloading Erlinda. Please send questions or suggestions to 
+bhatti@plexobject.com.
+
+This software is released under GNU General Public License. 
+
+This release includes following files and directories:
+
+
+README         : This file.  
+LICENSE        : GNU GPL. 
+lib	       : all components of Erlinda, along with source code, examples and documentation.
+doc	       : High level documentation
+bin	       : Installation and runtime scripts and binaries
+
+
+Installation Requirements:
+ - Install Erlang 5.5 from http://www.erlang.org/download.html.
+ - Install RabbitMQ from http://www.rabbitmq.com/download.html.
+
+Installing:
+ - Add folowing to your codepath
+
+Running:
+ - 
+
+Examples
+
+
