@@ -39,7 +39,7 @@
 -export([
 	 out/2,
 	 in/3,
-	 subscribe2/
+	 subscribe/2
 	 ]).
 
 
