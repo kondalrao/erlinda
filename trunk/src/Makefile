@@ -25,8 +25,8 @@ INSTALL_DST = $(ERLANG_OTP)/lib/$(APP_NAME)-$(VSN)
 # ----------------------------------------------------
 
 
-MODULES = $(shell ls *.erl | sed s/.erl//)
-MODULES_COMMA = $(shell ls *.erl | sed s/\\.erl/,/)
+MODULES = $(shell find . -name "*.erl" | sed s/.erl//)
+MODULES_COMMA = $(shell find . -name "*.erl" | sed s/\\.erl/,/)
 
 HRL_FILES=
 INTERNAL_HRL_FILES= $(APP_NAME).hrl
