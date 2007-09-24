@@ -1,8 +1,8 @@
 # $Id$
 #
-include ../../../build/otp.mk
-include ../../../build/colors.mk
-include ../../../build/buildtargets.mk
+include ../build/otp.mk
+include ../build/colors.mk
+include ../build/buildtargets.mk
 
 # ----------------------------------------------------
 # Application version
@@ -61,7 +61,7 @@ ERL_COMPILE_FLAGS += -I../include -I../../fslib/include -I../../system_status/in
 all debug opt: $(EBIN) $(TARGET_FILES) 
 
 #$(EBIN)/rm_logger.beam: $(APP_NAME).hrl
-include ../../../build/docs.mk
+include ../build/docs.mk
 
 # Note: In the open-source build clean must not destroy the preloaded
 # beam files.

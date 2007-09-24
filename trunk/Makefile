@@ -1,5 +1,5 @@
 MODULES = \
-	src/space
+	src
 
 all clean docs:
 	for dir in $(MODULES); do \

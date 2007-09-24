@@ -1,4 +1,4 @@
-EDOC_PATH=../../../tools/utilities
+EDOC_PATH=../tools
 
 #single place to include docs from.
 docs:

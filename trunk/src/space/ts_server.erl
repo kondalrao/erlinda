@@ -20,7 +20,7 @@
 %%--------------------------------------------------------------------
 %% Include files
 %%--------------------------------------------------------------------
--include("memory_tuple_space.hrl").
+-include("tuple_space.hrl").
 
 %%--------------------------------------------------------------------
 %% External exports
@@ -89,7 +89,7 @@ out(Node, Tuple) when is_tuple(Tuple) ->
 %% @spec in(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-in(Node, TemplateTuple, Timeout) when is_tuple(Tuple), is_atom(Timeout) ->
+in(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_atom(Timeout) ->
     gen_server:call({?SERVER, Node}, {in, {TemplateTuple, Timeout}}).
 
 %%--------------------------------------------------------------------
@@ -105,7 +105,7 @@ in(Node, TemplateTuple, Timeout) when is_tuple(Tuple), is_atom(Timeout) ->
 %% @spec subscribe(Node, TemplateTuple) -> bool() | EXIT
 %% @end
 %%--------------------------------------------------------------------
-subscribe(Node, Template) ->
+subscribe(Node, TemplateTuple) ->
     gen_server:call({?SERVER, Node}, {subscribe, {TemplateTuple, self()}}).
 
 
@@ -148,19 +148,7 @@ handle_call({subscribe, {TemplateTuple, Subscriber}}, From, State) ->
             {reply, true, NewState};
         error ->
             {reply, false, State}
-    end.
-
-
-%%--------------------------------------------------------------------
-%% Function: handle_call/3
-%% Description: Handling call messages
-%% Returns: {reply, Reply, State}          |
-%%          {reply, Reply, State, Timeout} |
-%%          {noreply, State}               |
-%%          {noreply, State, Timeout}      |
-%%          {stop, Reason, Reply, State}   | (terminate/2 is called)
-%%          {stop, Reason, State}            (terminate/2 is called)
-%%--------------------------------------------------------------------
+    end;
 handle_call(Request, From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -183,14 +171,12 @@ handle_cast({out, Tuple}, State) -> % Remember that State is a dict()
     NewState =
         case dict:find(Tuple, State) of
             {ok, {OldLocation, ListOfSubscribers}} ->
-                lists:foreach(fun(Subscriber) -> Subscriber ! {tuple_added, {Tuple, Location}} end, ListOfSubscribers),
+                lists:foreach(fun(Subscriber) -> Subscriber ! {tuple_added, Tuple} end, ListOfSubscribers),
                 dict:store(Tuple, {Tuple, ListOfSubscribers}, State);
             error ->
                 dict:store(Tuple, {Tuple, []}, State)
         end,
-    {noreply, NewState}.
-
-
+    {noreply, NewState};
 handle_cast(Msg, State) ->
     {noreply, State}.
 
