@@ -1,0 +1,14 @@
+%%% -*- mode:erlang -*-
+{release, 
+ {"erlinda_rel", "%REL_VSN%"},
+ erts,
+ [
+  kernel,
+  stdlib,
+  sasl,
+  fslib,
+  gas,
+  erlinda
+ ]
+}. 
+
