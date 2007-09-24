@@ -1,0 +1,34 @@
+%%% -*- mode:erlang -*-
+%%%$CVS$
+{application, %APP_NAME%,
+ [
+  % A breif descrition of the application.
+  {description, "Further Standard library modules"},
+
+  % The version number of the application.
+  {vsn, "%VSN%"},
+
+  % The modules that the application contains.
+  {modules,
+   [
+	%PFX%_boot_smithe,
+	%PFX%_elwrap_h,
+	%PFX%_email,
+	%PFX%_fprof_util,
+	%PFX%_lib,
+	%PFX%_lists,
+	%PFX%_net,
+	%PFX%_release_smithe,
+	%PFX%_string,
+	%PFX%_test_lib,
+	%PFX%_time
+   ]},
+
+  % All of the names that an application registers - avoids name clashes.
+  {registered, []},
+
+  % Applications that this one depends on.
+  {applications,[kernel, stdlib]}
+ ]
+}.
+
