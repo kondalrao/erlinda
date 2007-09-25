@@ -52,7 +52,7 @@ WEB_TARGET=/var/yaws/www/$(APP_NAME)
 # ----------------------------------------------------
 
 ERL_FLAGS +=
-ERL_COMPILE_FLAGS += -I../include -I../../fslib/include -I../../system_status/include 
+ERL_COMPILE_FLAGS += -I../include -I../lib/fslib/include -I../../system_status/include 
 
 # ----------------------------------------------------
 # Targets
