@@ -67,7 +67,7 @@ start_link(StartArgs) ->
 init([]) ->
     RestartStrategy    = one_for_one,
     MaxRestarts        = 1000,
-    MaxTimeBetRestarts = 3600,
+    MaxTimeBetRestarts = 30,    %% seconds
     
     SupFlags = {RestartStrategy, MaxRestarts, MaxTimeBetRestarts},
     
