@@ -30,7 +30,8 @@
 -export([
 	 start/2,
 	 shutdown/0,
-	 stop/1
+	 stop/1,
+         test/0
 	 ]).
 
 %%--------------------------------------------------------------------
@@ -39,9 +40,16 @@
 -export([
 	 put/2,
 	 get/3,
-	 notify/2
+	 size/1,
+	 subscribe/2
 	 ]).
 
+test() ->
+    dbg:tracer(),
+    dbg:p(all,[c,sos,sol]),
+    dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
+    ts_sup:start_link(""),
+    tuple_space:put(node(), {1, 2, 3}).
 
 %%--------------------------------------------------------------------
 %% Macros
@@ -104,6 +112,19 @@ put(Node, Tuple) ->
 get(Node, TemplateTuple, Timeout) ->
     ts_server:get(Node, TemplateTuple, Timeout).
 
+
+%%--------------------------------------------------------------------
+%% @doc Returns number of tuples in the tuple space.
+%% <pre>
+%% Types:
+%%  Node = node()
+%% </pre>
+%% @spec size() -> {ok, term} | {error, Reason} | EXIT
+%% @end
+%%--------------------------------------------------------------------
+size(Node) -> 
+    ts_server:size(Node).
+
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
 %% the matching template tuple. When a tuple is added or removed the caller 
@@ -114,11 +135,11 @@ get(Node, TemplateTuple, Timeout) ->
 %%  Node = node()
 %%  TemplateTuple = tuple()
 %% </pre>
-%% @spec notify(Node, TemplateTuple) -> bool() | EXIT
+%% @spec subscribe(Node, TemplateTuple) -> bool() | EXIT
 %% @end
 %%--------------------------------------------------------------------
-notify(Node, TemplateTuple) ->
-    ts_server:notify(Node, TemplateTuple).
+subscribe(Node, TemplateTuple) ->
+    ts_server:subscribe(Node, TemplateTuple).
 
 
 %%====================================================================

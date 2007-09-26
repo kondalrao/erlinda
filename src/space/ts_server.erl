@@ -37,7 +37,8 @@
 -export([
 	 put/2,
 	 get/3,
-	 notify/2
+	 size/1,
+	 subscribe/2
 	 ]).
 
 
@@ -95,13 +96,25 @@ put(Node, Tuple) when is_tuple(Tuple) ->
 %% Types:
 %%  Node = node()
 %%  TemplateTuple = tuple()
-%%  Timeout = atom()
+%%  Timeout = integer()
 %% </pre>
 %% @spec get(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_atom(Timeout) ->
+get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_integer(Timeout) ->
     gen_server:call({?SERVER, Node}, {get, {TemplateTuple, Timeout}}).
+
+%%--------------------------------------------------------------------
+%% @doc Returns number of tuples in the tuple space.
+%% <pre>
+%% Types:
+%%  Node = node()
+%% </pre>
+%% @spec size() -> {ok, term} | {error, Reason} | EXIT
+%% @end
+%%--------------------------------------------------------------------
+size(Node) -> 
+    gen_server:call({?SERVER, Node}, {size, {}}).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -113,11 +126,11 @@ get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_atom(Timeout)
 %%  Node = node()
 %%  TemplateTuple = tuple()
 %% </pre>
-%% @spec notify(Node, TemplateTuple) -> bool() | EXIT
+%% @spec subscribe(Node, TemplateTuple) -> bool() | EXIT
 %% @end
 %%--------------------------------------------------------------------
-notify(Node, TemplateTuple) ->
-    gen_server:call({?SERVER, Node}, {notify, {TemplateTuple, self()}}).
+subscribe(Node, TemplateTuple) ->
+    gen_server:call({?SERVER, Node}, {subscribe, {TemplateTuple, self()}}).
 
 
 %%====================================================================
@@ -134,7 +147,7 @@ notify(Node, TemplateTuple) ->
 %%--------------------------------------------------------------------
 init([]) ->
     error_logger:info_msg("ts_server:init/1 starting~n", []),
-    {ok, {ets:new(?SERVER, [bag]), []}}.
+    {ok, {ets:new(tuple_space, [duplicate_bag]), []}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -148,6 +161,8 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
 io:format("~n~n~n====finding match for ~p in ~p~n~n~n", [TemplateTuple, Timeout]),
+    JJ = ets:match(TupleSpace, TemplateTuple, 1), 
+io:format("~n~n~n====found ~p~n~n~n", [JJ]),
     case ets:match(TupleSpace, TemplateTuple, 1) of
         {[], _Cont} -> 
             {reply, {error, no_match}, State};
@@ -158,7 +173,10 @@ io:format("~n~n~n====finding match for ~p in ~p~n~n~n", [TemplateTuple, Timeout]
             NewState = {TupleSpace1, Subscriptions},
             {reply, {ok, Match}, NewState}
     end;
-handle_call({notify, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({size, {}}, From, {TupleSpace, Subscriptions} = State) ->
+    Size = ets:info(TupleSpace, size),
+    {reply, {ok, Size}, State};
+handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
     NewSubscriptions = [Subscription|lists:delete(Subscription, Subscriptions)],
     NewState         = {TupleSpace, NewSubscriptions},
     {reply, true, NewState};
@@ -181,7 +199,7 @@ handle_cast(stop, State) ->
 
 
 handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> % Remember that State is a ets()
-io:format("~n~n~n====adding ~p in ~p~n~n~n", [Tuple, Subscriptions]),
+io:format("~n~n~n====inserting ~p in ~p~n~n~n", [Tuple, Subscriptions]),
 
     TupleSpace1 = ets:insert(TupleSpace, Tuple),
     lists:foldl(fun({TemplateTuple, Subscriber}, Tuple) -> 
