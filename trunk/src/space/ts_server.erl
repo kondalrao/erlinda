@@ -30,6 +30,17 @@
 	 stop/0
 	 ]).
 
+
+%%--------------------------------------------------------------------
+%% External exports for APIs
+%%--------------------------------------------------------------------
+-export([
+	 out/2,
+	 in/3,
+	 subscribe/2
+	 ]).
+
+
 %%--------------------------------------------------------------------
 %% gen_server callbacks
 %%--------------------------------------------------------------------
@@ -135,7 +146,7 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
-handle_call({in, TemplateTuple, Timeout}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({in, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
     case ets:match(TupleSpace, TemplateTuple, 1) of
         {[], _Cont} -> 
             {reply, {error, no_match}, State};
@@ -148,7 +159,7 @@ handle_call({in, TemplateTuple, Timeout}, From, {TupleSpace, Subscriptions} = St
     end;
 handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
     NewSubscriptions = [Subscription|lists:delete(Subscription, Subscriptions)],
-    NewState             = {TupleSpace, NewSubscriptions},
+    NewState         = {TupleSpace, NewSubscriptions},
     {reply, true, NewState};
 handle_call(Request, From, {TupleSpace, Subscriptions} = State) ->
     Reply = ok,
