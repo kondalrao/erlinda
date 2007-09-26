@@ -86,7 +86,7 @@ shutdown() ->
 %% @end
 %%--------------------------------------------------------------------
 out(Node, Tuple) ->
-    ls_server:out(Node, Tuple).
+    ts_server:out(Node, Tuple).
 
 %%--------------------------------------------------------------------
 %% @doc Removes a matching tuple and returns it. If the no tuple
@@ -102,7 +102,7 @@ out(Node, Tuple) ->
 %% @end
 %%--------------------------------------------------------------------
 in(Node, TemplateTuple, Timeout) ->
-    ls_server:in(Node, TemplateTuple, Timeout).
+    ts_server:in(Node, TemplateTuple, Timeout).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -118,7 +118,7 @@ in(Node, TemplateTuple, Timeout) ->
 %% @end
 %%--------------------------------------------------------------------
 subscribe(Node, TemplateTuple) ->
-    ls_server:in(Node, TemplateTuple).
+    ts_server:subscribe(Node, TemplateTuple).
 
 
 %%====================================================================
