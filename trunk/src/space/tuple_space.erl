@@ -37,9 +37,9 @@
 %% External exports for APIs
 %%--------------------------------------------------------------------
 -export([
-	 out/2,
-	 in/3,
-	 subscribe/2
+	 put/2,
+	 get/3,
+	 notify/2
 	 ]).
 
 
@@ -82,11 +82,11 @@ shutdown() ->
 %%  Node = node()
 %%  Tuple = tuple()
 %% </pre>
-%% @spec out(Tuple) -> ok
+%% @spec put(Tuple) -> ok
 %% @end
 %%--------------------------------------------------------------------
-out(Node, Tuple) ->
-    ts_server:out(Node, Tuple).
+put(Node, Tuple) ->
+    ts_server:put(Node, Tuple).
 
 %%--------------------------------------------------------------------
 %% @doc Removes a matching tuple and returns it. If the no tuple
@@ -98,11 +98,11 @@ out(Node, Tuple) ->
 %%  TemplateTuple = tuple()
 %%  Timeout = atom()
 %% </pre>
-%% @spec in(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
+%% @spec get(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-in(Node, TemplateTuple, Timeout) ->
-    ts_server:in(Node, TemplateTuple, Timeout).
+get(Node, TemplateTuple, Timeout) ->
+    ts_server:get(Node, TemplateTuple, Timeout).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -114,11 +114,11 @@ in(Node, TemplateTuple, Timeout) ->
 %%  Node = node()
 %%  TemplateTuple = tuple()
 %% </pre>
-%% @spec subscribe(Node, TemplateTuple) -> bool() | EXIT
+%% @spec notify(Node, TemplateTuple) -> bool() | EXIT
 %% @end
 %%--------------------------------------------------------------------
-subscribe(Node, TemplateTuple) ->
-    ts_server:subscribe(Node, TemplateTuple).
+notify(Node, TemplateTuple) ->
+    ts_server:notify(Node, TemplateTuple).
 
 
 %%====================================================================
