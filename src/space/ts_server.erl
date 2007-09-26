@@ -35,9 +35,9 @@
 %% External exports for APIs
 %%--------------------------------------------------------------------
 -export([
-	 out/2,
-	 in/3,
-	 subscribe/2
+	 put/2,
+	 get/3,
+	 notify/2
 	 ]).
 
 
@@ -81,11 +81,11 @@ stop() ->
 %%  Node = node()
 %%  Tuple = tuple()
 %% </pre>
-%% @spec out(Tuple) -> ok
+%% @spec put(Tuple) -> ok
 %% @end
 %%--------------------------------------------------------------------
-out(Node, Tuple) when is_tuple(Tuple) ->
-    gen_server:cast({?SERVER, Node}, {out, Tuple}).
+put(Node, Tuple) when is_tuple(Tuple) ->
+    gen_server:cast({?SERVER, Node}, {put, Tuple}).
 
 %%--------------------------------------------------------------------
 %% @doc Removes a matching tuple and returns it. If the no tuple
@@ -97,11 +97,11 @@ out(Node, Tuple) when is_tuple(Tuple) ->
 %%  TemplateTuple = tuple()
 %%  Timeout = atom()
 %% </pre>
-%% @spec in(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
+%% @spec get(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-in(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_atom(Timeout) ->
-    gen_server:call({?SERVER, Node}, {in, {TemplateTuple, Timeout}}).
+get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_atom(Timeout) ->
+    gen_server:call({?SERVER, Node}, {get, {TemplateTuple, Timeout}}).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -113,11 +113,11 @@ in(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_atom(Timeout) 
 %%  Node = node()
 %%  TemplateTuple = tuple()
 %% </pre>
-%% @spec subscribe(Node, TemplateTuple) -> bool() | EXIT
+%% @spec notify(Node, TemplateTuple) -> bool() | EXIT
 %% @end
 %%--------------------------------------------------------------------
-subscribe(Node, TemplateTuple) ->
-    gen_server:call({?SERVER, Node}, {subscribe, {TemplateTuple, self()}}).
+notify(Node, TemplateTuple) ->
+    gen_server:call({?SERVER, Node}, {notify, {TemplateTuple, self()}}).
 
 
 %%====================================================================
@@ -134,7 +134,7 @@ subscribe(Node, TemplateTuple) ->
 %%--------------------------------------------------------------------
 init([]) ->
     error_logger:info_msg("ts_server:init/1 starting~n", []),
-    {ok, ets:new(?SERVER, [bag])}.
+    {ok, {ets:new(?SERVER, [bag]), []}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -146,7 +146,8 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
-handle_call({in, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
+io:format("~n~n~n====finding match for ~p in ~p~n~n~n", [TemplateTuple, Timeout]),
     case ets:match(TupleSpace, TemplateTuple, 1) of
         {[], _Cont} -> 
             {reply, {error, no_match}, State};
@@ -157,7 +158,7 @@ handle_call({in, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = 
             NewState = {TupleSpace1, Subscriptions},
             {reply, {ok, Match}, NewState}
     end;
-handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({notify, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
     NewSubscriptions = [Subscription|lists:delete(Subscription, Subscriptions)],
     NewState         = {TupleSpace, NewSubscriptions},
     {reply, true, NewState};
@@ -179,9 +180,16 @@ handle_cast(stop, State) ->
     {stop, normal, State};
 
 
-handle_cast({out, Tuple}, {TupleSpace, Subscriptions} = State) -> % Remember that State is a ets()
+handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> % Remember that State is a ets()
+io:format("~n~n~n====adding ~p in ~p~n~n~n", [Tuple, Subscriptions]),
+
     TupleSpace1 = ets:insert(TupleSpace, Tuple),
-    lists:foldl(fun notify_subscriber/2, Subscriptions),
+    lists:foldl(fun({TemplateTuple, Subscriber}, Tuple) -> 
+        case matches_tuple(TemplateTuple, Tuple) of
+            true ->
+                Subscriber ! {notify_tuple_added, Tuple}
+        end
+    end, Tuple, Subscriptions),
     NewState = {TupleSpace1, Subscriptions},
     {noreply, NewState};
 handle_cast(Msg, State) ->
@@ -238,8 +246,3 @@ matches_tuple([_H|_T], []) ->
 matches_tuple([], []) ->
     true.
 
-notify_subscriber({TemplateTuple, Subscriber}, Tuple) -> 
-    case matches_tuple(TemplateTuple, Tuple) of
-        true ->
-            Subscriber ! {notify_tuple_added, Tuple}
-    end.
