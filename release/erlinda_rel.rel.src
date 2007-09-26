@@ -8,7 +8,7 @@
   sasl,
   fslib,
   gas,
-  erlinda
+  tuple_space_server            %%% erlinda
  ]
 }. 
 

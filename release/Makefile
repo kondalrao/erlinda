@@ -5,19 +5,22 @@
 ##
 # Basename of this release.
 ##
-RELS=$(shell basename `pwd`)
+%RELS=$(shell basename `pwd`)
+RELS=erlinda_rel
 APP_NAME=$(shell echo $(RELS) | sed s/_rel$$//)
 
-include ../../build/otp.mk
+include ../build/otp.mk
 
 include ./vsn.mk
 
 #include $(ERL_TOP)/make/target.mk
 #include $(ERL_TOP)/make/$(TARGET)/otp.mk
 
-USR_LIBPATH=../../lib
+USR_LIBPATH=../lib
 INSTALL_DIR=/usr/local/lib
 ABS_USER_LIBPATH=$(shell cd ../../lib;pwd)
+
+
 
 # ----------------------------------------------------
 # CREATE DIR STRUCTURE HERE
@@ -161,7 +164,7 @@ $(LOCAL_SCRIPT_AND_BOOT_FILES):
 	      -s init stop
 	cp $(SCRIPT_AND_BOOT_FILES) $(LOCAL_DIR)/ 
 
-$(LOCAL_DIR)/var/$(REL_VSN)/www/conf/mime.types: ../../build/mime.types
+$(LOCAL_DIR)/var/$(REL_VSN)/www/conf/mime.types: ../build/mime.types
 	cp $< $@
 
 # ----------------------------------------------------

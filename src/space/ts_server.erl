@@ -123,7 +123,7 @@ subscribe(Node, TemplateTuple) ->
 %%--------------------------------------------------------------------
 init([]) ->
     error_logger:info_msg("ts_server:init/1 starting~n", []),
-    {ok, dict:new()}.
+    {ok, ets:new(?SERVER, [bag])}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -135,21 +135,22 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
-handle_call({in, TemplateTuple, Timeout}, From, State) ->
-    case dict:find(TemplateTuple, State) of
-        {ok, {Tuple, ListOfSubscribers}} -> {reply, {ok, Tuple}, State};
-        error                               -> {reply, {error, no_such_template}, State}
+handle_call({in, TemplateTuple, Timeout}, From, {TupleSpace, Subscriptions} = State) ->
+    case ets:match(TupleSpace, TemplateTuple, 1) of
+        {[], _Cont} -> 
+            {reply, {error, no_match}, State};
+        '$end_of_table' -> 
+            {reply, {error, no_match}, State};
+        {[Match], _Cont} -> 
+            TupleSpace1 = ets:delete_object(Match),
+            NewState = {TupleSpace1, Subscriptions},
+            {reply, {ok, Match}, NewState}
     end;
-handle_call({subscribe, {TemplateTuple, Subscriber}}, From, State) ->
-    case dict:find(TemplateTuple, State) of
-        {ok, {Tuple, ListOfSubscribers}} ->
-            NewListOfSubscribers = [Subscriber|lists:delete(Subscriber, ListOfSubscribers)],
-            NewState             = dict:store(TemplateTuple, {Tuple, NewListOfSubscribers}, State),
-            {reply, true, NewState};
-        error ->
-            {reply, false, State}
-    end;
-handle_call(Request, From, State) ->
+handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
+    NewSubscriptions = [Subscription|lists:delete(Subscription, Subscriptions)],
+    NewState             = {TupleSpace, NewSubscriptions},
+    {reply, true, NewState};
+handle_call(Request, From, {TupleSpace, Subscriptions} = State) ->
     Reply = ok,
     {reply, Reply, State}.
 
@@ -167,15 +168,10 @@ handle_cast(stop, State) ->
     {stop, normal, State};
 
 
-handle_cast({out, Tuple}, State) -> % Remember that State is a dict()
-    NewState =
-        case dict:find(Tuple, State) of
-            {ok, {OldLocation, ListOfSubscribers}} ->
-                lists:foreach(fun(Subscriber) -> Subscriber ! {tuple_added, Tuple} end, ListOfSubscribers),
-                dict:store(Tuple, {Tuple, ListOfSubscribers}, State);
-            error ->
-                dict:store(Tuple, {Tuple, []}, State)
-        end,
+handle_cast({out, Tuple}, {TupleSpace, Subscriptions} = State) -> % Remember that State is a ets()
+    TupleSpace1 = ets:insert(TupleSpace, Tuple),
+    lists:foldl(fun notify_subscriber/2, Subscriptions),
+    NewState = {TupleSpace1, Subscriptions},
     {noreply, NewState};
 handle_cast(Msg, State) ->
     {noreply, State}.
@@ -210,3 +206,29 @@ code_change(OldVsn, State, Extra) ->
 %%====================================================================
 %%% Internal functions
 %%====================================================================
+matches_tuple(Tuple1, Tuple2) when is_tuple(Tuple1) and is_tuple(Tuple2) ->
+    matches_tuple(tuple_to_list(Tuple1), tuple_to_list(Tuple2));
+matches_tuple(Tuple1, List2) when is_tuple(Tuple1) ->
+    matches_tuple(tuple_to_list(Tuple1), List2);
+matches_tuple(List1, Tuple2) when is_tuple(Tuple2) and is_tuple(Tuple2) ->
+    matches_tuple(List1, tuple_to_list(Tuple2));
+matches_tuple([H|T1], [H|T2]) ->
+    matches_tuple(T1, T2);
+matches_tuple(['_'|T1], [H2|T2]) ->
+    matches_tuple(T1, T2);
+matches_tuple([H1|T1], ['_'|T2]) ->
+    matches_tuple(T1, T2);
+matches_tuple([H1|_T1], [H2|_T2]) ->
+    false;
+matches_tuple([], [_H|_T]) ->
+    false;
+matches_tuple([_H|_T], []) ->
+    false;
+matches_tuple([], []) ->
+    true.
+
+notify_subscriber({TemplateTuple, Subscriber}, Tuple) -> 
+    case matches_tuple(TemplateTuple, Tuple) of
+        true ->
+            Subscriber ! {notify_tuple_added, Tuple}
+    end.
