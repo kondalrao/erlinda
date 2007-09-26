@@ -11,6 +11,7 @@ echo $CURRENT_DIR
 # Establish the otp base directory.
 MY_CMD=`which $0`
 MY_CMD_DIR=`dirname $MY_CMD`
-OTP_BASE_DIR=$MY_CMD_DIR/../..
+OTP_BASE_DIR=$MY_CMD_DIR/..
 
+echo `pwd` running -- erl -noshell -pz $OTP_BASE_DIR/lib/fslib/ebin -s fs_lib s_apply edoc application "$1".  "\"../../$1"\". []." " -s init stop 
 erl -noshell -pz $OTP_BASE_DIR/lib/fslib/ebin -s fs_lib s_apply edoc application "$1".  "\"../../$1"\". []." " -s init stop | egrep "(EXIT|terminating)"
