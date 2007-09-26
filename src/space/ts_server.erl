@@ -147,6 +147,7 @@ subscribe(Node, TemplateTuple) ->
 %%--------------------------------------------------------------------
 init([]) ->
     error_logger:info_msg("ts_server:init/1 starting~n", []),
+    process_flag(trap_exit, true),
     {ok, {ets:new(tuple_space, [duplicate_bag]), []}}.
 
 %%--------------------------------------------------------------------
