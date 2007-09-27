@@ -25,6 +25,8 @@
 %% External exports
 %%--------------------------------------------------------------------
 -export([
+         start/0, 
+         start_in_shell_for_testing/0,
 	 start_link/1
         ]).
 
@@ -47,6 +49,15 @@
 %%====================================================================
 %% External functions
 %%====================================================================
+start() ->
+    spawn(fun() ->
+                  supervisor:start_link({local,?MODULE}, ?MODULE, _Arg = [])
+          end).
+
+start_in_shell_for_testing() ->
+    {ok, Pid} = supervisor:start_link({local,?MODULE}, ?MODULE, _Arg = []),
+    unlink(Pid).
+
 %%--------------------------------------------------------------------
 %% @doc Starts the supervisor.
 %% @spec start_link(StartArgs) -> {ok, pid()} | Error
