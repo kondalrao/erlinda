@@ -162,9 +162,9 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
 io:format("~n~n~n====finding match for ~p in ~p~n~n~n", [TemplateTuple, Timeout]),
-    JJ = ets:match(TupleSpace, TemplateTuple, 1), 
+    JJ = ets:match_object(TupleSpace, TemplateTuple), 
 io:format("~n~n~n====found ~p~n~n~n", [JJ]),
-    case ets:match(TupleSpace, TemplateTuple, 1) of
+    case ets:match_object(TupleSpace, TemplateTuple) of
         {[], _Cont} -> 
             {reply, {error, no_match}, State};
         '$end_of_table' -> 

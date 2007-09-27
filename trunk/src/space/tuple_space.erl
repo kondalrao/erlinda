@@ -48,8 +48,9 @@ test() ->
     dbg:tracer(),
     dbg:p(all,[c,sos,sol]),
     dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
-    ts_sup:start_link(""),
-    tuple_space:put(node(), {1, 2, 3}).
+    tuple_space:start(1, 2),
+    tuple_space:put(node(), {1, 2, 3}),
+    tuple_space:get(node(), {'$1', '$2', '$3'},2).
 
 %%--------------------------------------------------------------------
 %% Macros
