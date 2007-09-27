@@ -146,9 +146,9 @@ subscribe(Node, TemplateTuple) ->
 %%          {stop, Reason}
 %%--------------------------------------------------------------------
 init([]) ->
-    error_logger:info_msg("ts_server:init/1 starting~n", []),
     process_flag(trap_exit, true),
-    {ok, {ets:new(tuple_space, [duplicate_bag]), []}}.
+    error_logger:info_msg("ts_server:init/1 starting~n", []),
+    {ok, {ets:new(tuple_space, [bag]), []}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -161,17 +161,12 @@ init([]) ->
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
 handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
-io:format("~n~n~n====finding match for ~p in ~p~n~n~n", [TemplateTuple, Timeout]),
-    JJ = ets:match_object(TupleSpace, TemplateTuple), 
-io:format("~n~n~n====found ~p~n~n~n", [JJ]),
-    case ets:match_object(TupleSpace, TemplateTuple) of
-        {[], _Cont} -> 
-            {reply, {error, no_match}, State};
+    case ets:match_object(TupleSpace, TemplateTuple, 1) of
         '$end_of_table' -> 
             {reply, {error, no_match}, State};
         {[Match], _Cont} -> 
-            TupleSpace1 = ets:delete_object(Match),
-            NewState = {TupleSpace1, Subscriptions},
+            ets:delete_object(TupleSpace, Match),
+            NewState = {TupleSpace, Subscriptions},
             {reply, {ok, Match}, NewState}
     end;
 handle_call({size, {}}, From, {TupleSpace, Subscriptions} = State) ->
@@ -200,16 +195,14 @@ handle_cast(stop, State) ->
 
 
 handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> % Remember that State is a ets()
-io:format("~n~n~n====inserting ~p in ~p~n~n~n", [Tuple, Subscriptions]),
-
-    TupleSpace1 = ets:insert(TupleSpace, Tuple),
+    ets:insert(TupleSpace, Tuple),
     lists:foldl(fun({TemplateTuple, Subscriber}, Tuple) -> 
         case matches_tuple(TemplateTuple, Tuple) of
             true ->
                 Subscriber ! {notify_tuple_added, Tuple}
         end
     end, Tuple, Subscriptions),
-    NewState = {TupleSpace1, Subscriptions},
+    NewState = {TupleSpace, Subscriptions},
     {noreply, NewState};
 handle_cast(Msg, State) ->
     {noreply, State}.
@@ -231,6 +224,7 @@ handle_info(Info, State) ->
 %% Returns: any (ignored by gen_server)
 %%--------------------------------------------------------------------
 terminate(Reason, State) ->
+    error_logger:info_msg("ts_server:terminate/2 shutting down.~n", []),
     ok.
 
 %%--------------------------------------------------------------------
