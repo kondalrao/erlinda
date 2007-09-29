@@ -38,6 +38,7 @@
 	 put/2,
 	 get/3,
 	 size/1,
+	 crash/1,
 	 subscribe/2
 	 ]).
 
@@ -115,6 +116,8 @@ get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_integer(Timeo
 %%--------------------------------------------------------------------
 size(Node) -> 
     gen_server:call({?SERVER, Node}, {size, {}}).
+crash(Node) -> 
+    gen_server:call({?SERVER, Node}, {crash, {}}).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -172,6 +175,9 @@ handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} =
 handle_call({size, {}}, From, {TupleSpace, Subscriptions} = State) ->
     Size = ets:info(TupleSpace, size),
     {reply, {ok, Size}, State};
+handle_call({crash, {}}, From, {TupleSpace, Subscriptions} = State) ->
+    1 = 3,
+    {reply, {ok, 5}, State};
 handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
     NewSubscriptions = [Subscription|lists:delete(Subscription, Subscriptions)],
     NewState         = {TupleSpace, NewSubscriptions},
