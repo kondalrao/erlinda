@@ -87,7 +87,7 @@ init([]) ->
 	 {ts_server,
 	  {ts_server, start_link, []},
 	  permanent,
-	  1000,
+	  10000,
 	  worker,
 	  [ts_server]}
 	 ],
