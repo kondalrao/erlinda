@@ -1,0 +1,35 @@
+%%% -*- mode:erlang -*-
+%%% Parameter settings for apps on erlinda
+%%% Warning - this config file *must* end with <dot><whitespace>
+
+%% write log files to sasl_dir
+[
+ {sasl,
+  [
+   %% define the parameters of the rotating log
+   %% the log file directory
+   {error_logger_mf_dir,"error_logs"},	
+   %{sasl_error_logger, false},	
+   %% # bytes per logfile
+   {error_logger_mf_maxbytes,10485760}, % 10 MB
+   %% maximum number of logfiles
+   {error_logger_mf_maxfiles, 10},
+   {sasl_error_logger, {file, "/home/shahzad/erlinda/release/local/log/1.0/sasl_log"}}
+  ]},
+
+
+ {gas,
+  [
+   {mod_specs, [{elwrap, {fs_elwrap_h, start_link}}]},
+
+   % elwrap config.
+   {err_log, "/home/shahzad/erlinda/release/local/log/1.0/err_log"},
+   {err_log_wrap_info, {{err,5000000,10},{sasl,5000000,10}}}, 
+   {err_log_tty, true} % Log to the screen
+   ]},
+
+ {erlinda,
+  [
+  ]}
+]. 
+
