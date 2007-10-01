@@ -26,7 +26,7 @@
 %% External exports
 %%--------------------------------------------------------------------
 -export([
-	 start_link/0,
+	 start_link/1,
 	 stop/0
 	 ]).
 
@@ -57,6 +57,7 @@
 %% macro definitions
 %%--------------------------------------------------------------------
 -define(SERVER, ?MODULE).
+-define(TUPLE_SPACE_PROVIDER, dets_ts).   %% ets_ts, mnesia_ts
 
 %%====================================================================
 %% External functions
@@ -66,8 +67,8 @@
 %% @spec start_link() -> {ok, pid()} | {error, Reason}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(StartArgs) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, StartArgs, []).
 
 %%--------------------------------------------------------------------
 %% @doc Stops the server.
@@ -148,10 +149,10 @@ subscribe(Node, TemplateTuple) ->
 %%          ignore               |
 %%          {stop, Reason}
 %%--------------------------------------------------------------------
-init([]) ->
+init([TupleSpaceName]) ->
     process_flag(trap_exit, true),
-    error_logger:info_msg("ts_server:init/1 starting~n", []),
-    {ok, {ets:new(tuple_space, [bag]), []}}.
+    error_logger:info_msg("ts_server:init/1 starting ~p~n", [TupleSpaceName]),
+    {ok, {?TUPLE_SPACE_PROVIDER:new(TupleSpaceName), []}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -164,16 +165,10 @@ init([]) ->
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
 handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
-    case ets:match_object(TupleSpace, TemplateTuple, 1) of
-        '$end_of_table' -> 
-            {reply, {error, no_match}, State};
-        {[Match], _Cont} -> 
-            ets:delete_object(TupleSpace, Match),
-            NewState = {TupleSpace, Subscriptions},
-            {reply, {ok, Match}, NewState}
-    end;
+    Resp = ?TUPLE_SPACE_PROVIDER:get(TupleSpace, TemplateTuple, Timeout),
+    {reply, Resp, State};
 handle_call({size, {}}, From, {TupleSpace, Subscriptions} = State) ->
-    Size = ets:info(TupleSpace, size),
+    Size = ?TUPLE_SPACE_PROVIDER:size(TupleSpace),
     {reply, {ok, Size}, State};
 handle_call({crash, {}}, From, {TupleSpace, Subscriptions} = State) ->
     1 = 3,
@@ -200,8 +195,8 @@ handle_cast(stop, State) ->
     {stop, normal, State};
 
 
-handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> % Remember that State is a ets()
-    ets:insert(TupleSpace, Tuple),
+handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> 
+    ?TUPLE_SPACE_PROVIDER:put(TupleSpace, Tuple),
     lists:foldl(fun({TemplateTuple, Subscriber}, Tuple) -> 
         case matches_tuple(TemplateTuple, Tuple) of
             true ->
@@ -221,6 +216,11 @@ handle_cast(Msg, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
+handle_info({'EXIT', Pid, Reason}, {TupleSpace, Subscriptions} = State) ->
+    ?TUPLE_SPACE_PROVIDER:delete(TupleSpace),
+    %unlink(Res),
+    %exit(Res, Reason),
+    {noreply, State};
 handle_info(Info, State) ->
     {noreply, State}.
 

@@ -64,7 +64,7 @@ start_in_shell_for_testing() ->
 %% @end
 %%--------------------------------------------------------------------
 start_link(StartArgs) ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+    supervisor:start_link({local, ?SERVER}, ?MODULE, StartArgs).
 
 %%====================================================================
 %% Server functions
@@ -75,7 +75,7 @@ start_link(StartArgs) ->
 %%          ignore                          |
 %%          {error, Reason}   
 %%--------------------------------------------------------------------
-init([]) ->
+init(StartArgs) ->
     RestartStrategy    = one_for_one,
     MaxRestarts        = 1000,
     MaxTimeBetRestarts = 30,    %% seconds
@@ -85,7 +85,7 @@ init([]) ->
     ChildSpecs =
 	[
 	 {ts_server,
-	  {ts_server, start_link, []},
+	  {ts_server, start_link, StartArgs},
 	  permanent,
 	  10000,
 	  worker,
