@@ -46,10 +46,10 @@
 	 ]).
 
 test() ->
-    %%dbg:tracer(),
-    %%dbg:p(all,[c,sos,sol]),
-    %%dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
-    tuple_space:start(1, 2),
+    dbg:tracer(),
+    dbg:p(all,[c,sos,sol]),
+    dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
+    tuple_space:start(type, ["dets_storage_tuple"]),
     error_logger:info_msg("Adding 3 tuples~n"),
     tuple_space:put(node(), {1, 2, 3}),
     tuple_space:put(node(), {1, 2, 3,4}),
@@ -57,7 +57,7 @@ test() ->
     tuple_space:put(node(), {1, 2, 3,4,5}),
     error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())]),
 
-    tuple_space:crash(node()),
+    %tuple_space:crash(node()),
 
     error_logger:info_msg("Size of tuple space after crash ~p~n", [tuple_space:size(node())]),
 
@@ -90,7 +90,8 @@ test() ->
 %% @end
 %%--------------------------------------------------------------------
 start(Type, StartArgs) ->
-    case ts_sup:start_link(StartArgs) of
+    %case ts_sup:start_link(StartArgs) of
+    case ts_server:start_link(StartArgs) of
 	{ok, Pid} -> 
 	    {ok, Pid};
 	Error ->
