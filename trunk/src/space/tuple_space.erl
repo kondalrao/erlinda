@@ -30,8 +30,7 @@
 -export([
 	 start/2,
 	 shutdown/0,
-	 stop/1,
-         test/0
+	 stop/1
 	 ]).
 
 %%--------------------------------------------------------------------
@@ -44,34 +43,6 @@
 	 crash/1,
 	 subscribe/2
 	 ]).
-
-test() ->
-    dbg:tracer(),
-    dbg:p(all,[c,sos,sol]),
-    dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
-    tuple_space:start(type, ["dets_storage_tuple"]),
-    error_logger:info_msg("Adding 3 tuples~n"),
-    tuple_space:put(node(), {1, 2, 3}),
-    tuple_space:put(node(), {1, 2, 3,4}),
-    tuple_space:put(node(), {1, 2, 3,4}),
-    tuple_space:put(node(), {1, 2, 3,4,5}),
-    error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())]),
-
-    %tuple_space:crash(node()),
-
-    error_logger:info_msg("Size of tuple space after crash ~p~n", [tuple_space:size(node())]),
-
-    %error_logger:info_msg("Getting and removing first tuple ~p~n", [tuple_space:get(node(), {'$1', '$2', '$3'},2)]),
-    %error_logger:info_msg("Getting and removing second tuple ~p~n", [tuple_space:get(node(), {'$1', '$2', '$3', '$4'},2)]),
-    %error_logger:info_msg("Getting and removing third tuple ~p~n", [tuple_space:get(node(), {'$1', '$2', '$3', '$4', '$5'},2)]),
-    %error_logger:info_msg("Getting and removing non existing tuple~p~n", [tuple_space:get(node(), {'$1', '$2', '$3', '$4', '$5'},2)]),
-    %error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())]),
-
-    %error_logger:info_msg("Adding another tuples~n"),
-    %tuple_space:put(node(), {1, 2, 3, 4}),
-    %error_logger:info_msg("Size of tuple space again ~p~n", [tuple_space:size(node())]),
-    %error_logger:info_msg("Getting and removing second tuple ~p~n", [tuple_space:get(node(), {'$1', '$2', '$3', '$4'},2)]),
-    error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())]).
 
 %%--------------------------------------------------------------------
 %% Macros
