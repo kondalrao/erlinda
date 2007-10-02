@@ -30,15 +30,20 @@
 %% External functions
 %%====================================================================
 test() ->
-    %dbg:tracer(),
-    %dbg:p(all,[c,sos,sol]),
-    %dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
-    tuple_space:start(type, ["dets_storage_tuple"]),
-    start_master(20),
-    start_slave(5),
-    error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())]),
-    sleep(10000),
-    error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())]).
+    try 
+        dbg:tracer(),
+        dbg:p(all,[c,sos,sol]),
+        dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
+        tuple_space:start(type, ["dets_storage_tuple"]),
+        start_master(20),
+        start_slave(5),
+        sleep(10000),
+        error_logger:info_msg("Last Size of tuple space ~p~n", [tuple_space:size(node())])
+    catch
+        Ex ->
+            io:format("test caught ~p~n", [Ex])
+            %throw Ex
+    end.
 
 
 %%====================================================================
@@ -50,7 +55,15 @@ start_master(0) ->
     true;
 start_master(N) ->
     error_logger:info_msg("Adding tuples ~p ~n", [N]),
-    spawn(?MODULE, fun() -> tuple_space:put(node(), {tuple_record, N}) end),
+    spawn(?MODULE, fun() -> 
+        try
+            tuple_space:put(node(), {tuple_record, N}),
+            error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())])
+        catch
+            Ex ->
+                io:format("start_master caught ~p~n", [Ex])
+        end
+    end),
     start_master(N-1).
 
 
@@ -58,7 +71,14 @@ start_master(N) ->
 start_slave(0) ->
     true;
 start_slave(N) ->
-    spawn(?MODULE, slave_loop/1, N),
+    spawn(?MODULE, fun() ->
+        try 
+            slave_loop(N)
+        catch
+            Ex ->
+                io:format("start_slave caught ~p~n", [Ex])
+        end
+    end),
     start_slave(N-1).
 
 slave_loop(N) ->
