@@ -31,9 +31,9 @@
 %%====================================================================
 test() ->
     try 
-        dbg:tracer(),
-        dbg:p(all,[c,sos,sol]),
-        dbg:tpl(tuple_space, [{'_',[],[{message,{return_trace}}]}]),
+        %debug_helper:start(),
+        %debug_helper:trace(tuple_space),
+        %debug_helper:trace(ts_server),
         tuple_space:start(type, ["dets_storage_tuple"]),
         start_master(20),
         start_slave(5),
@@ -55,15 +55,15 @@ start_master(0) ->
     true;
 start_master(N) ->
     error_logger:info_msg("Adding tuples ~p ~n", [N]),
-    spawn(?MODULE, fun() -> 
+    %spawn(?MODULE, fun() -> 
         try
             tuple_space:put(node(), {tuple_record, N}),
             error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())])
         catch
             Ex ->
                 io:format("start_master caught ~p~n", [Ex])
-        end
-    end),
+        end,
+    %end),
     start_master(N-1).
 
 
@@ -71,18 +71,18 @@ start_master(N) ->
 start_slave(0) ->
     true;
 start_slave(N) ->
-    spawn(?MODULE, fun() ->
+    %spawn(?MODULE, fun() ->
         try 
             slave_loop(N)
         catch
             Ex ->
                 io:format("start_slave caught ~p~n", [Ex])
-        end
-    end),
+        end,
+    %end),
     start_slave(N-1).
 
 slave_loop(N) ->
-   Tuple = tule_space:get({tuple_record, '_'}),
+   Tuple = tuple_space:get(node(), {tuple_record, '_'}, 100),
    error_logger:info_msg("Getting tuples ~p for N ~p~n", [Tuple, N]),
    sleep(1000),
    slave_loop(N).

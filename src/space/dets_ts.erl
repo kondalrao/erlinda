@@ -51,10 +51,13 @@ new(TupleSpaceName) ->
 %%%         {timeout}
 %%--------------------------------------------------------------------
 get(TupleSpace, TemplateTuple, Timeout) ->
+    %error_logger:info_msg("dets got ~p~n", [X]),
     case dets:match_object(TupleSpace, TemplateTuple, 1) of
         '$end_of_table' -> 
             {timeout};
-        {[Match], _Cont} -> 
+        {[], _Cont} -> 
+            {timeout};
+        {[Match|_], _Cont} -> 
             dets:delete_object(TupleSpace, Match),
             {ok, Match}
     end.
