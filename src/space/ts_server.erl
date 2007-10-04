@@ -57,7 +57,7 @@
 %% macro definitions
 %%--------------------------------------------------------------------
 -define(SERVER, ?MODULE).
--define(TUPLE_SPACE_PROVIDER, dets_ts).   %% ets_ts, mnesia_ts
+-define(TUPLE_SPACE_PROVIDER, ets_ts).   %% dets_ts, mnesia_ts
 
 %%====================================================================
 %% External functions
@@ -152,7 +152,7 @@ subscribe(Node, TemplateTuple) ->
 init([TupleSpaceName]) ->
     process_flag(trap_exit, true),
     error_logger:info_msg("ts_server:init/1 starting ~p~n", [TupleSpaceName]),
-    {ok, {?TUPLE_SPACE_PROVIDER:new(TupleSpaceName), []}}.
+    {ok, {?TUPLE_SPACE_PROVIDER:new(TupleSpaceName), dict:new()}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -174,7 +174,7 @@ handle_call({crash, {}}, From, {TupleSpace, Subscriptions} = State) ->
     1 = 3,
     {reply, {ok, 5}, State};
 handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
-    NewSubscriptions = [Subscription|lists:delete(Subscription, Subscriptions)],
+    NewSubscriptions = dict:store(TemplateTuple, {From, false}),
     NewState         = {TupleSpace, NewSubscriptions},
     {reply, true, NewState};
 handle_call(Request, From, {TupleSpace, Subscriptions} = State) ->
@@ -197,13 +197,8 @@ handle_cast(stop, State) ->
 
 handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> 
     ?TUPLE_SPACE_PROVIDER:put(TupleSpace, Tuple),
-    lists:foldl(fun({TemplateTuple, Subscriber}, Tuple) -> 
-        case matches_tuple(TemplateTuple, Tuple) of
-            true ->
-                Subscriber ! {notify_tuple_added, Tuple}
-        end
-    end, Tuple, Subscriptions),
-    NewState = {TupleSpace, Subscriptions},
+    {Tuple, NewSubscriptions} = {Tuple, Subscriptions}, %dict:fold(notify_subscribers/3, {Tuple, Subscriptions}, Subscriptions),
+    NewState = {TupleSpace, NewSubscriptions},
     {noreply, NewState};
 handle_cast(Msg, State) ->
     {noreply, State}.
@@ -244,6 +239,9 @@ code_change(OldVsn, State, Extra) ->
 %%====================================================================
 %%% Internal functions
 %%====================================================================
+%%
+%%% tries to match two tuples where '_' is considered as wild card.
+%%
 matches_tuple(Tuple1, Tuple2) when is_tuple(Tuple1) and is_tuple(Tuple2) ->
     matches_tuple(tuple_to_list(Tuple1), tuple_to_list(Tuple2));
 matches_tuple(Tuple1, List2) when is_tuple(Tuple1) ->
@@ -265,3 +263,23 @@ matches_tuple([_H|_T], []) ->
 matches_tuple([], []) ->
     true.
 
+%%
+%%% notifies subscribers, where permanent subscribers are the processes
+%%% that explicitly subscribed and temporary subscribers are the ones
+%%% that just issue blocking get or read and wait for response and 
+%%% their subscriptions is removed after tuple matches.
+%%
+notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) when TemporarySubscriber ->
+    case matches_tuple(TemplateTuple, Tuple) of
+        true ->
+            gen_server:reply(From, {ok, Tuple})
+    end,
+    NewSubscriptions = dict:erase(TemplateTuple, Subscriptions),
+    {Tuple, NewSubscriptions};
+notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) ->
+
+    case matches_tuple(TemplateTuple, Tuple) of
+        true ->
+            From ! {notify_tuple_added, Tuple}
+    end,
+    {Tuple, Subscriptions}.

@@ -29,3 +29,7 @@ trace(ModuleName) ->
 
 trace(ModuleName,Function) ->
   dbg:tpl(ModuleName,Function,[{'_',[],[{message,{return_trace}}]}]).
+
+%cprof:start(), cprof:pause(), cprof:analyze(mod), cprof:stop().
+%erlc +debug_info *.erl, xref:d('.')
+

@@ -6,5 +6,10 @@ fi;
 erlc -o ebin -I include/ -Ilib/fslib/include src/util/*.erl src/space/*.erl test/space/*.erl|grep -v Warning
 cd release/local
 cat ../../src/space/tuple_space.app.src |sed "s/%VSN%/1.0/g" > tuple_space.app
-#erl -boot start_sasl -sname node1 -config erlinda_rel.config -pz ../../ebin 
-erl -boot start_sasl -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s tuple_space_test test -s init stop
+
+if [ $# -gt 0 ];
+then
+  erl -boot start_sasl -sname node1 -config erlinda_rel.config -pz ../../ebin 
+else
+  erl -boot start_sasl -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s tuple_space_test test -s init stop
+fi;
