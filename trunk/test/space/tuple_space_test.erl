@@ -31,14 +31,17 @@
 %%====================================================================
 test() ->
     try 
-        %debug_helper:start(),
+        debug_helper:start(),
         %debug_helper:trace(tuple_space),
-        %debug_helper:trace(ts_server),
-        tuple_space:start(type, ["dets_storage_tuple"]),
-        start_master(20),
+        debug_helper:trace(ts_server),
+	applications:load(tuple_space),
+	applications:start_link(tuple_space),
+        %tuple_space:start(type, ["dets_storage_tuple"]),
+        start_subscriber(),
         start_slave(5),
-        sleep(10000),
-        error_logger:info_msg("Last Size of tuple space ~p~n", [tuple_space:size(node())])
+        start_master(20),
+        sleep(3000),
+        error_logger:info_msg("****Last Size of tuple space ~p~n", [tuple_space:size(node())])
     catch
         Ex ->
             io:format("test caught ~p~n", [Ex])
@@ -50,20 +53,16 @@ test() ->
 %% Internal functions
 %%====================================================================
 
+start_subscriber() ->
+    spawn(fun() -> tuple_space:subscribe(node(), {tuple_record, '_'}),
+	listen_events/0 end).
+
 
 start_master(0) ->
     true;
 start_master(N) ->
     error_logger:info_msg("Adding tuples ~p ~n", [N]),
-    %spawn(?MODULE, fun() -> 
-        try
-            tuple_space:put(node(), {tuple_record, N}),
-            error_logger:info_msg("Size of tuple space ~p~n", [tuple_space:size(node())])
-        catch
-            Ex ->
-                io:format("start_master caught ~p~n", [Ex])
-        end,
-    %end),
+    spawn(fun() -> tuple_space:put(node(), {tuple_record, N}) end),
     start_master(N-1).
 
 
@@ -71,14 +70,7 @@ start_master(N) ->
 start_slave(0) ->
     true;
 start_slave(N) ->
-    %spawn(?MODULE, fun() ->
-        try 
-            slave_loop(N)
-        catch
-            Ex ->
-                io:format("start_slave caught ~p~n", [Ex])
-        end,
-    %end),
+    spawn(fun() -> slave_loop(N) end),
     start_slave(N-1).
 
 slave_loop(N) ->
@@ -93,3 +85,12 @@ sleep(T) ->
         after T -> true
     end.
  
+listen_events() ->
+    receive 
+        {tuple_added, Tuple} ->
+             error_logger:info_msg("Notified tuples ~p ~n", [Tuple]),
+	listen_events();
+	Any ->
+             error_logger:info_msg("Unknown event ~p ~n", [Any]),
+	listen_events()
+    end.
