@@ -33,14 +33,18 @@ test() ->
     try 
         debug_helper:start(),
         %debug_helper:trace(tuple_space),
-        debug_helper:trace(ts_server),
+        %debug_helper:trace(ts_server),
+        %debug_helper:trace(ts_ets),
+        %debug_helper:trace(tuple_space_test),
 	%application:load(tuple_space),
 	%application:start(tuple_space),
         tuple_space:start(type, ["dets_storage_tuple"]),
+        %start_slave(20),
         start_subscriber(),
-        start_slave(5),
-        start_master(20),
-        sleep(3000),
+        sleep(1000), % let it register
+        start_master(1),
+        error_logger:info_msg("****Finished starting...~n"),
+        sleep(5000),
         error_logger:info_msg("****Last Size of tuple space ~p~n", [tuple_space:size(node())])
     catch
         Ex ->
@@ -54,8 +58,10 @@ test() ->
 %%====================================================================
 
 start_subscriber() ->
-    spawn(fun() -> tuple_space:subscribe(node(), {tuple_record, '_'}),
-	listen_events/0 end).
+    spawn(fun() -> 
+        tuple_space:subscribe(node(), {tuple_record, '_'}),
+	listen_events()
+        end).
 
 
 start_master(0) ->
@@ -86,11 +92,14 @@ sleep(T) ->
     end.
  
 listen_events() ->
+    error_logger:info_msg("listen_events waiting to receive...~n"),
     receive 
         {tuple_added, Tuple} ->
-             error_logger:info_msg("Notified tuples ~p ~n", [Tuple]),
+             error_logger:info_msg("listen_events Notified tuples ~p ~n", [Tuple]),
 	listen_events();
 	Any ->
-             error_logger:info_msg("Unknown event ~p ~n", [Any]),
+             error_logger:info_msg("listen_events Unknown event ~p ~n", [Any]),
 	listen_events()
+    after 500000 -> 
+        error_logger:info_msg("listen_events timedout, trying again...~n")
     end.

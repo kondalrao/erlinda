@@ -62,6 +62,7 @@
 %%--------------------------------------------------------------------
 start(Type, StartArgs) ->
     case ts_sup:start_link(StartArgs) of
+    %case ts_server:start_link(StartArgs) of
 	{ok, Pid} -> 
 	    {ok, Pid};
 	Error ->

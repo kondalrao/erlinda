@@ -174,7 +174,7 @@ handle_call({crash, {}}, From, {TupleSpace, Subscriptions} = State) ->
     1 = 3,
     {reply, {ok, 5}, State};
 handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
-    NewSubscriptions = dict:store(TemplateTuple, {From, false}),
+    NewSubscriptions = dict:store(TemplateTuple, {Subscriber, false}, Subscriptions),
     NewState         = {TupleSpace, NewSubscriptions},
     {reply, true, NewState};
 handle_call(Request, From, {TupleSpace, Subscriptions} = State) ->
@@ -197,7 +197,7 @@ handle_cast(stop, State) ->
 
 handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> 
     ?TUPLE_SPACE_PROVIDER:put(TupleSpace, Tuple),
-    {Tuple, NewSubscriptions} = {Tuple, Subscriptions}, %dict:fold(notify_subscribers/3, {Tuple, Subscriptions}, Subscriptions),
+    {Tuple, NewSubscriptions} = dict:fold(fun notify_subscribers/3, {Tuple, Subscriptions}, Subscriptions),
     NewState = {TupleSpace, NewSubscriptions},
     {noreply, NewState};
 handle_cast(Msg, State) ->
@@ -270,16 +270,21 @@ matches_tuple([], []) ->
 %%% their subscriptions is removed after tuple matches.
 %%
 notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) when TemporarySubscriber ->
-    case matches_tuple(TemplateTuple, Tuple) of
+    NewSubscriptions = case matches_tuple(TemplateTuple, Tuple) of
         true ->
-            gen_server:reply(From, {ok, Tuple})
+            gen_server:reply(From, {ok, Tuple}),
+            error_logger:info_msg("notify_subscribers matched tuple ~p for ~p, will delete now~n", [Tuple, From]),
+            dict:erase(TemplateTuple, Subscriptions);
+        false ->
+            Subscriptions
     end,
-    NewSubscriptions = dict:erase(TemplateTuple, Subscriptions),
     {Tuple, NewSubscriptions};
 notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) ->
-
     case matches_tuple(TemplateTuple, Tuple) of
         true ->
-            From ! {notify_tuple_added, Tuple}
+            error_logger:info_msg("notify_subscribers matched tuple ~p for ~p~n", [Tuple, From]),
+            From ! {tuple_added, Tuple};
+        false ->
+            false
     end,
     {Tuple, Subscriptions}.
