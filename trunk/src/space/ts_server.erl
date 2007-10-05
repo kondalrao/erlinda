@@ -152,7 +152,7 @@ subscribe(Node, TemplateTuple) ->
 init([TupleSpaceName]) ->
     process_flag(trap_exit, true),
     error_logger:info_msg("ts_server:init/1 starting ~p~n", [TupleSpaceName]),
-    {ok, {?TUPLE_SPACE_PROVIDER:new(TupleSpaceName), dict:new()}}.
+    {ok, {?TUPLE_SPACE_PROVIDER:new(TupleSpaceName), dict:new(), []}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -164,28 +164,28 @@ init([TupleSpaceName]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
-handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions, Timers} = State) ->
     Resp = ?TUPLE_SPACE_PROVIDER:get(TupleSpace, TemplateTuple, Timeout),
     case Resp of 
         {error, nomatch} ->
             NewSubscriptions = dict:store(TemplateTuple, {From, true}, Subscriptions),
-            NewState         = {TupleSpace, NewSubscriptions},
-	    start_timeout_timer(From, TemplateTuple, Timeout),
+	    NewTimer = start_timeout_timer(From, TemplateTuple, Timeout),
+            NewState         = {TupleSpace, NewSubscriptions, [NewTimer|Timers]},
             {noreply, NewState};
         {ok, _} ->
             {reply, Resp, State}
     end;
-handle_call({size, {}}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({size, {}}, From, {TupleSpace, Subscriptions, Timers} = State) ->
     Size = ?TUPLE_SPACE_PROVIDER:size(TupleSpace),
     {reply, {ok, Size}, State};
-handle_call({crash, {}}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({crash, {}}, From, {TupleSpace, Subscriptions, Timers} = State) ->
     1 = 3,
     {reply, {ok, 5}, State};
-handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions} = State) ->
+handle_call({subscribe, {TemplateTuple, Subscriber}=Subscription}, From, {TupleSpace, Subscriptions, Timers} = State) ->
     NewSubscriptions = dict:store(TemplateTuple, {Subscriber, false}, Subscriptions),
-    NewState         = {TupleSpace, NewSubscriptions},
+    NewState         = {TupleSpace, NewSubscriptions, Timers},
     {reply, true, NewState};
-handle_call(Request, From, {TupleSpace, Subscriptions} = State) ->
+handle_call(Request, From, {TupleSpace, Subscriptions, Timers} = State) ->
     Reply = ok,
     {reply, Reply, State}.
 
@@ -203,10 +203,10 @@ handle_cast(stop, State) ->
     {stop, normal, State};
 
 
-handle_cast({put, Tuple}, {TupleSpace, Subscriptions} = State) -> 
+handle_cast({put, Tuple}, {TupleSpace, Subscriptions, Timers} = State) -> 
     ?TUPLE_SPACE_PROVIDER:put(TupleSpace, Tuple),
-    {Tuple, NewSubscriptions} = dict:fold(fun notify_subscribers/3, {Tuple, Subscriptions}, Subscriptions),
-    NewState = {TupleSpace, NewSubscriptions},
+    {Tuple, NewSubscriptions} = dict:fold(fun notify_tuple_added/3, {Tuple, Subscriptions}, Subscriptions),
+    NewState = {TupleSpace, NewSubscriptions, Timers},
     {noreply, NewState};
 handle_cast(Msg, State) ->
     {noreply, State}.
@@ -219,15 +219,15 @@ handle_cast(Msg, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
-handle_info({'EXIT', Pid, Reason}, {TupleSpace, Subscriptions} = State) ->
-    ?TUPLE_SPACE_PROVIDER:delete(TupleSpace),
+handle_info({'EXIT', Pid, Reason}, {TupleSpace, Subscriptions, Timers} = State) ->
+    cleanup(TupleSpace, Subscriptions, Timers),
     %unlink(Res),
     %exit(Res, Reason),
     {noreply, State};
-handle_info({timedout, From, TemplateTuple}, {TupleSpace, Subscriptions} = State) ->
+handle_info({timedout, From, TemplateTuple}, {TupleSpace, Subscriptions, Timers} = State) ->
     gen_server:reply(From, {timedout, TemplateTuple}),
     NewSubscriptions = dict:erase(TemplateTuple, Subscriptions),
-    {TupleSpace, NewSubscriptions};
+    {noreply, {TupleSpace, NewSubscriptions, Timers}};
 handle_info(Info, State) ->
     {noreply, State}.
 
@@ -236,8 +236,9 @@ handle_info(Info, State) ->
 %% Description: Shutdown the server
 %% Returns: any (ignored by gen_server)
 %%--------------------------------------------------------------------
-terminate(Reason, State) ->
+terminate(Reason, {TupleSpace, Subscriptions, Timers} = State) ->
     error_logger:info_msg("ts_server:terminate/2 shutting down.~n", []),
+    cleanup(TupleSpace, Subscriptions, Timers),
     ok.
 
 %%--------------------------------------------------------------------
@@ -281,25 +282,32 @@ matches_tuple([], []) ->
 %%% that just issue blocking get or read and wait for response and 
 %%% their subscriptions is removed after tuple matches.
 %%
-notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) when TemporarySubscriber ->
+notify_tuple_added(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) when TemporarySubscriber ->
     NewSubscriptions = case matches_tuple(TemplateTuple, Tuple) of
         true ->
             gen_server:reply(From, {ok, Tuple}),
-            error_logger:info_msg("notify_subscribers matched tuple ~p for ~p, will delete now~n", [Tuple, From]),
+            error_logger:info_msg("notify_tuple_added matched tuple ~p for ~p, will delete now~n", [Tuple, From]),
             dict:erase(TemplateTuple, Subscriptions);
         false ->
             Subscriptions
     end,
     {Tuple, NewSubscriptions};
-notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) ->
+notify_tuple_added(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) ->
     case matches_tuple(TemplateTuple, Tuple) of
         true ->
-            error_logger:info_msg("notify_subscribers matched tuple ~p for ~p~n", [Tuple, From]),
+            error_logger:info_msg("notify_tuple_added matched tuple ~p for ~p~n", [Tuple, From]),
             From ! {tuple_added, Tuple};
         false ->
             false
     end,
     {Tuple, Subscriptions}.
+
+%%
+%%% this method notifies subscribers that the server is terminated.
+%%
+notify_server_terminated(_, {From, _TempSubscription}, _) ->
+    error_logger:info_msg("notifying subscriber that server is dead ~p~n", [From]),
+    catch From ! {server_terminated}.
 
 
 %%
@@ -307,6 +315,7 @@ notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscript
 %%% we send back timeout error
 %%
 start_timeout_timer(From, TemplateTuple, Timeout) when Timeout > 0 ->
+    %%%% spawn_link is creating dump
     spawn(fun() -> timeout_loop(From, TemplateTuple, Timeout) end);
 start_timeout_timer(From, TemplateTuple, Timeout) ->
     true.
@@ -318,6 +327,23 @@ timeout_loop(From, TemplateTuple, Timeout) ->
              error_logger:info_msg("timeout_loop unknown event ~p ~n", [Any]),
 	     timeout_loop(From, TemplateTuple, Timeout)
     after Timeout -> 
-        error_logger:info_msg("timeout_loop timedout ~p...~n", [TemplateTuple]),
-        gen_server:info({?SERVER, node()}, {timedout, From, TemplateTuple})
+        error_logger:info_msg("timeout_loop begin from ~p timedout ~p...~n", [From, TemplateTuple]),
+        ?SERVER ! {timedout, From, TemplateTuple},
+        error_logger:info_msg("timeout_loop end from ~p timedout ~p...~n", [From, TemplateTuple])
     end.
+    
+%%
+%%% this method terminates any timers that are running.
+%%% we send back timeout error
+%%
+terminate_timers(Timer) ->
+    error_logger:info_msg("cancelling timer ~p~n", [Timer]),
+    catch Timer ! {cancel_timer}.
+
+%%
+%%% this method cleans up resources when the server dies
+%%
+cleanup(TupleSpace, Subscriptions, Timers) ->
+    catch ?TUPLE_SPACE_PROVIDER:delete(TupleSpace),
+    catch dict:fold(fun notify_server_terminated/3, nil, Subscriptions),
+    catch lists:foreach(fun terminate_timers/1, Timers).

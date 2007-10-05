@@ -39,13 +39,13 @@ test() ->
 	%application:load(tuple_space),
 	%application:start(tuple_space),
         tuple_space:start(type, ["dets_storage_tuple"]),
-        start_slave(20),
+        start_slave(2),
         start_subscriber(),
         sleep(1000), % let it register
         start_master(1),
-        error_logger:info_msg("****Finished starting...~n"),
+        error_logger:info_msg("          ****Finished starting...~n"),
         sleep(5000),
-        error_logger:info_msg("****Last Size of tuple space ~p~n", [tuple_space:size(node())])
+        error_logger:info_msg("          ****Last Size of tuple space ~p~n", [tuple_space:size(node())])
     catch
         Ex ->
             io:format("test caught ~p~n", [Ex])
@@ -67,7 +67,7 @@ start_subscriber() ->
 start_master(0) ->
     true;
 start_master(N) ->
-    error_logger:info_msg("Adding tuples ~p ~n", [N]),
+    error_logger:info_msg("          Adding tuples ~p ~n", [N]),
     spawn(fun() -> tuple_space:put(node(), {tuple_record, N}) end),
     start_master(N-1).
 
@@ -81,7 +81,7 @@ start_slave(N) ->
 
 slave_loop(N) ->
    Tuple = tuple_space:get(node(), {tuple_record, '_'}, 1000),
-   error_logger:info_msg("Getting tuples ~p for N ~p~n", [Tuple, N]),
+   error_logger:info_msg("          Getting tuples ~p for N ~p~n", [Tuple, N]),
    sleep(1000),
    slave_loop(N).
       
@@ -92,14 +92,16 @@ sleep(T) ->
     end.
  
 listen_events() ->
-    error_logger:info_msg("listen_events waiting to receive...~n"),
+    error_logger:info_msg("          listen_events waiting to receive...~n"),
     receive 
         {tuple_added, Tuple} ->
-             error_logger:info_msg("listen_events Notified tuples ~p ~n", [Tuple]),
-	listen_events();
+             error_logger:info_msg("          listen_events Notified tuples ~p ~n", [Tuple]),
+	     listen_events();
+        {server_terminated} ->
+             error_logger:info_msg("          listen_events server died, terminating~n");
 	Any ->
-             error_logger:info_msg("listen_events Unknown event ~p ~n", [Any]),
+             error_logger:info_msg("          listen_events Unknown event ~p ~n", [Any]),
 	listen_events()
     after 500000 -> 
-        error_logger:info_msg("listen_events timedout, trying again...~n")
+        error_logger:info_msg("          listen_events timedout, trying again...~n")
     end.
