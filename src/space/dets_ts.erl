@@ -48,15 +48,15 @@ new(TupleSpaceName) ->
 %% Description: performs a blocking get and returns the tuple. The
 %% tuple is removed from the tuple space.
 %% Returns: {ok, Tuple} |
-%%%         {timeout}
+%%%         {error, nomatch}
 %%--------------------------------------------------------------------
 get(TupleSpace, TemplateTuple, Timeout) ->
     %error_logger:info_msg("dets got ~p~n", [X]),
     case dets:match_object(TupleSpace, TemplateTuple, 1) of
         '$end_of_table' -> 
-            {timeout};
+            {error, nomatch};
         {[], _Cont} -> 
-            {timeout};
+            {error, nomatch};
         {[Match|_], _Cont} -> 
             dets:delete_object(TupleSpace, Match),
             {ok, Match}

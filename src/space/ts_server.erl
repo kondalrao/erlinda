@@ -100,7 +100,7 @@ put(Node, Tuple) when is_tuple(Tuple) ->
 %%  TemplateTuple = tuple()
 %%  Timeout = integer()
 %% </pre>
-%% @spec get(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
+%% @spec get(TemplateTuple, Timeout) -> {ok, Tuple} | {error, timeout} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
 get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_integer(Timeout) ->
@@ -166,7 +166,15 @@ init([TupleSpaceName]) ->
 %%--------------------------------------------------------------------
 handle_call({get, {TemplateTuple, Timeout}}, From, {TupleSpace, Subscriptions} = State) ->
     Resp = ?TUPLE_SPACE_PROVIDER:get(TupleSpace, TemplateTuple, Timeout),
-    {reply, Resp, State};
+    case Resp of 
+        {error, nomatch} ->
+            NewSubscriptions = dict:store(TemplateTuple, {From, true}, Subscriptions),
+            NewState         = {TupleSpace, NewSubscriptions},
+	    start_timeout_timer(From, TemplateTuple, Timeout),
+            {noreply, NewState};
+        {ok, _} ->
+            {reply, Resp, State}
+    end;
 handle_call({size, {}}, From, {TupleSpace, Subscriptions} = State) ->
     Size = ?TUPLE_SPACE_PROVIDER:size(TupleSpace),
     {reply, {ok, Size}, State};
@@ -216,6 +224,10 @@ handle_info({'EXIT', Pid, Reason}, {TupleSpace, Subscriptions} = State) ->
     %unlink(Res),
     %exit(Res, Reason),
     {noreply, State};
+handle_info({timedout, From, TemplateTuple}, {TupleSpace, Subscriptions} = State) ->
+    gen_server:reply(From, {timedout, TemplateTuple}),
+    NewSubscriptions = dict:erase(TemplateTuple, Subscriptions),
+    {TupleSpace, NewSubscriptions};
 handle_info(Info, State) ->
     {noreply, State}.
 
@@ -288,3 +300,24 @@ notify_subscribers(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscript
             false
     end,
     {Tuple, Subscriptions}.
+
+
+%%
+%%% this starts a process that waits and if the matching tuple is not found
+%%% we send back timeout error
+%%
+start_timeout_timer(From, TemplateTuple, Timeout) when Timeout > 0 ->
+    spawn(fun() -> timeout_loop(From, TemplateTuple, Timeout) end);
+start_timeout_timer(From, TemplateTuple, Timeout) ->
+    true.
+timeout_loop(From, TemplateTuple, Timeout) ->
+    receive 
+        {cancel_timer} ->
+	    true;
+	Any ->
+             error_logger:info_msg("timeout_loop unknown event ~p ~n", [Any]),
+	     timeout_loop(From, TemplateTuple, Timeout)
+    after Timeout -> 
+        error_logger:info_msg("timeout_loop timedout ~p...~n", [TemplateTuple]),
+        gen_server:info({?SERVER, node()}, {timedout, From, TemplateTuple})
+    end.
