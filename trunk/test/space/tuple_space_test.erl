@@ -39,7 +39,7 @@ test() ->
 	%application:load(tuple_space),
 	%application:start(tuple_space),
         tuple_space:start(type, ["dets_storage_tuple"]),
-        %start_slave(20),
+        start_slave(20),
         start_subscriber(),
         sleep(1000), % let it register
         start_master(1),
@@ -80,7 +80,7 @@ start_slave(N) ->
     start_slave(N-1).
 
 slave_loop(N) ->
-   Tuple = tuple_space:get(node(), {tuple_record, '_'}, 100),
+   Tuple = tuple_space:get(node(), {tuple_record, '_'}, 1000),
    error_logger:info_msg("Getting tuples ~p for N ~p~n", [Tuple, N]),
    sleep(1000),
    slave_loop(N).

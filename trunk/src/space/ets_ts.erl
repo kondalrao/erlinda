@@ -42,12 +42,12 @@ new(TupleSpaceName) ->
 %% Description: performs a blocking get and returns the tuple. The
 %% tuple is removed from the tuple space.
 %% Returns: {ok, Tuple} |
-%%%         {timeout}
+%%%         {error, nomatch}
 %%--------------------------------------------------------------------
 get(TupleSpace, TemplateTuple, Timeout) ->
     case ets:match_object(TupleSpace, TemplateTuple, 1) of
         '$end_of_table' -> 
-            {timeout};
+            {error, nomatch};
         {[Match], _Cont} -> 
             ets:delete_object(TupleSpace, Match),
             {ok, Match}
