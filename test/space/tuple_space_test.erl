@@ -39,10 +39,10 @@ test() ->
 	%application:load(tuple_space),
 	%application:start(tuple_space),
         tuple_space:start(type, ["dets_storage_tuple"]),
-        start_slave(2),
+        start_slave(5),
         start_subscriber(),
         sleep(1000), % let it register
-        start_master(1),
+        start_master(5),
         error_logger:info_msg("          ****Finished starting...~n"),
         sleep(5000),
         error_logger:info_msg("          ****Last Size of tuple space ~p~n", [tuple_space:size(node())])
@@ -92,16 +92,16 @@ sleep(T) ->
     end.
  
 listen_events() ->
-    error_logger:info_msg("          listen_events waiting to receive...~n"),
     receive 
         {tuple_added, Tuple} ->
              error_logger:info_msg("          listen_events Notified tuples ~p ~n", [Tuple]),
 	     listen_events();
         {server_terminated} ->
-             error_logger:info_msg("          listen_events server died, terminating~n");
+             error_logger:info_msg("          listen_events server died, terminating~n"),
+             exit(cancel_timer);
 	Any ->
              error_logger:info_msg("          listen_events Unknown event ~p ~n", [Any]),
 	listen_events()
-    after 500000 -> 
-        error_logger:info_msg("          listen_events timedout, trying again...~n")
+    after 300000 -> 
+        error_logger:info_msg("          listen_events didn't get any tuples in 5 minutes, trying again...~n")
     end.
