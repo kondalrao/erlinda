@@ -322,14 +322,12 @@ start_timeout_timer(From, TemplateTuple, Timeout) ->
 timeout_loop(From, TemplateTuple, Timeout) ->
     receive 
         {cancel_timer} ->
-	    true;
+            exit(cancel_timer);
 	Any ->
              error_logger:info_msg("timeout_loop unknown event ~p ~n", [Any]),
 	     timeout_loop(From, TemplateTuple, Timeout)
     after Timeout -> 
-        error_logger:info_msg("timeout_loop begin from ~p timedout ~p...~n", [From, TemplateTuple]),
-        ?SERVER ! {timedout, From, TemplateTuple},
-        error_logger:info_msg("timeout_loop end from ~p timedout ~p...~n", [From, TemplateTuple])
+        ?SERVER ! {timedout, From, TemplateTuple}
     end.
     
 %%
@@ -337,7 +335,7 @@ timeout_loop(From, TemplateTuple, Timeout) ->
 %%% we send back timeout error
 %%
 terminate_timers(Timer) ->
-    error_logger:info_msg("cancelling timer ~p~n", [Timer]),
+    %error_logger:info_msg("cancelling timer ~p~n", [Timer]),
     catch Timer ! {cancel_timer}.
 
 %%
