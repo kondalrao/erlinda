@@ -276,6 +276,22 @@ matches_tuple([_H|_T], []) ->
 matches_tuple([], []) ->
     true.
 
+
+%%
+%%% A recod is just a tuple where first element is record name, so when
+%%% using Mnesia encode tuple so that we can save them in Mnesia directly.
+%%% Note that for ETS the first element of tuple is key whereas in Mnesia
+%%% the first element is record name and second is key.
+%%
+encode_tuple(Tuple) when is_tuple(Tuple) ->
+    List = [recod|tuple_to_list(Tuple)],
+    list_to_tuple(List).
+
+decode_tuple(Tuple) when is_tuple(Tuple) ->
+    [H|T] = tuple_to_list(Tuple),
+    list_to_tuple(T).
+
+
 %%
 %%% notifies subscribers, where permanent subscribers are the processes
 %%% that explicitly subscribed and temporary subscribers are the ones
