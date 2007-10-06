@@ -80,7 +80,7 @@ start_slave(N) ->
     start_slave(N-1).
 
 slave_loop(N) ->
-   Tuple = tuple_space:get(node(), {tuple_record, '_'}, 1000),
+   Tuple = tuple_space:get(node(), {tuple_record, '_'}, 10000),
    error_logger:info_msg("          Getting tuples ~p for N ~p~n", [Tuple, N]),
    sleep(1000),
    slave_loop(N).
