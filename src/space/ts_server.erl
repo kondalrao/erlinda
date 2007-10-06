@@ -252,45 +252,6 @@ code_change(OldVsn, State, Extra) ->
 %%====================================================================
 %%% Internal functions
 %%====================================================================
-%%
-%%% tries to match two tuples where '_' is considered as wild card.
-%%
-matches_tuple(Tuple1, Tuple2) when is_tuple(Tuple1) and is_tuple(Tuple2) ->
-    matches_tuple(tuple_to_list(Tuple1), tuple_to_list(Tuple2));
-matches_tuple(Tuple1, List2) when is_tuple(Tuple1) ->
-    matches_tuple(tuple_to_list(Tuple1), List2);
-matches_tuple(List1, Tuple2) when is_tuple(Tuple2) and is_tuple(Tuple2) ->
-    matches_tuple(List1, tuple_to_list(Tuple2));
-matches_tuple([H|T1], [H|T2]) ->
-    matches_tuple(T1, T2);
-matches_tuple(['_'|T1], [H2|T2]) ->
-    matches_tuple(T1, T2);
-matches_tuple([H1|T1], ['_'|T2]) ->
-    matches_tuple(T1, T2);
-matches_tuple([H1|_T1], [H2|_T2]) ->
-    false;
-matches_tuple([], [_H|_T]) ->
-    false;
-matches_tuple([_H|_T], []) ->
-    false;
-matches_tuple([], []) ->
-    true.
-
-
-%%
-%%% A recod is just a tuple where first element is record name, so when
-%%% using Mnesia encode tuple so that we can save them in Mnesia directly.
-%%% Note that for ETS the first element of tuple is key whereas in Mnesia
-%%% the first element is record name and second is key.
-%%
-encode_tuple(Tuple) when is_tuple(Tuple) ->
-    List = [recod|tuple_to_list(Tuple)],
-    list_to_tuple(List).
-
-decode_tuple(Tuple) when is_tuple(Tuple) ->
-    [H|T] = tuple_to_list(Tuple),
-    list_to_tuple(T).
-
 
 %%
 %%% notifies subscribers, where permanent subscribers are the processes
@@ -299,7 +260,7 @@ decode_tuple(Tuple) when is_tuple(Tuple) ->
 %%% their subscriptions is removed after tuple matches.
 %%
 notify_tuple_added(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) when TemporarySubscriber ->
-    NewSubscriptions = case matches_tuple(TemplateTuple, Tuple) of
+    NewSubscriptions = case tuple_util:matches_tuple(TemplateTuple, Tuple) of
         true ->
             gen_server:reply(From, {ok, Tuple}),
             error_logger:info_msg("notify_tuple_added matched tuple ~p for ~p, will delete now~n", [Tuple, From]),
@@ -309,7 +270,7 @@ notify_tuple_added(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscript
     end,
     {Tuple, NewSubscriptions};
 notify_tuple_added(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) ->
-    case matches_tuple(TemplateTuple, Tuple) of
+    case tuple_util:matches_tuple(TemplateTuple, Tuple) of
         true ->
             error_logger:info_msg("notify_tuple_added matched tuple ~p for ~p~n", [Tuple, From]),
             From ! {tuple_added, Tuple};
