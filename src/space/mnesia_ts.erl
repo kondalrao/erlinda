@@ -66,7 +66,7 @@ get(TupleSpace, TemplateTuple, Timeout) ->
 %% Returns: number of tuples
 %%--------------------------------------------------------------------
 size(TupleSpace) ->
-    ets:info(TupleSpace, size).
+    mnesia:table_info(TupleSpace, size).
 
 %%--------------------------------------------------------------------
 %% Function: put/2
@@ -87,7 +87,7 @@ put(TupleSpace, Tuple) ->
 %% Returns: 
 %%--------------------------------------------------------------------
 delete(TupleSpace) ->
-    ets:delete(TupleSpace).
+    catch mnesia:delete_table(TupleSpace).
 
 %%--------------------------------------------------------------------
 %% Function: delete/2
@@ -113,28 +113,28 @@ start_mnesia_if_not_running() ->
             mnesia:start();
         yes -> false
     end.
-create_table(Table) ->
-    %mnesia:wait_for_tables(Table, 60000)
-    catch mnesia:delete_table(Table),
-    mnesia:create_table(Table,
+create_table(TupleSpace) ->
+    %mnesia:wait_for_tables(TupleSpace, 60000)
+    delete(TupleSpace),
+    mnesia:create_table(TupleSpace,
                          [{type, duplicate_bag}, {ram_copies, [node()]}
                           %{index, [word]},
-                          %{attributes, record_info(fields,Table)}
+                          %{attributes, record_info(fields,TupleSpace)}
                         ]).
 
-get_all(Table) ->
-    {atomic, Tuples} = mnesia:transaction(fun () -> mnesia:all_keys(Table) end),
+get_all(TupleSpace) ->
+    {atomic, Tuples} = mnesia:transaction(fun () -> mnesia:all_keys(TupleSpace) end),
     Tuples.
 
-dirty_get_all(Table) ->
-    mnesia:dirty_select(Table, [{'$1',[],['$1']}]).
+dirty_get_all(TupleSpace) ->
+    mnesia:dirty_select(TupleSpace, [{'$1',[],['$1']}]).
 
 status() ->
     [{nodes, mnesia:system_info(db_nodes)},
      {running_nodes, mnesia:system_info(running_db_nodes)}].
 
-is_db_empty(Tables) ->
-    lists:all(fun (Tab) -> mnesia:dirty_first(Tab) == '$end_of_table' end, Tables).
+is_db_empty(TupleSpaces) ->
+    lists:all(fun (Tab) -> mnesia:dirty_first(Tab) == '$end_of_table' end, TupleSpaces).
 
 mnesia_dir() ->
    mnesia:system_info(directory) ++ "/".
