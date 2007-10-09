@@ -22,7 +22,9 @@
 -export([
 	 matches_tuple/2,
 	 tuple_to_record/2,
-	 record_to_tuple/1
+	 record_to_tuple/1,
+         record_to_list/2,
+         list_to_record/2
 	 ]).
 %%====================================================================
 %% Function: matches_tuple/2
@@ -76,3 +78,11 @@ tuple_to_record(BaseName, Tuple) when is_tuple(Tuple) ->
 record_to_tuple(Tuple) when is_tuple(Tuple) ->
     [H|T] = tuple_to_list(Tuple),
     list_to_tuple(T).
+
+
+
+record_to_list(Tag, Record) when is_atom(Tag) ->
+    lists:nthtail(1, tuple_to_list(Record)).
+
+list_to_record(Tag, List) when is_atom(Tag), is_list(List) ->
+    list_to_tuple([Tag|List]).

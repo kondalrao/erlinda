@@ -26,11 +26,19 @@
 	 ]).
 
 
+-record(person, {name, email, phone}).
+person(Name, Email, Phone) ->
+  #person {
+     name = Name,
+     email = Email,
+     phone = Phone}.
+
 %%====================================================================
 %% External functions
 %%====================================================================
 test() ->
     test_match(),
+    test_record(),
     test_conversion().
 
 test_match() ->
@@ -38,6 +46,12 @@ test_match() ->
     assert_equals(true, tuple_util:matches_tuple({1, 2, 3, 4}, {1, 2, 3, '_'})),
     assert_equals(true, tuple_util:matches_tuple({1, '_', 3, 4}, {1, 2, 3, '_'})),
     assert_equals(false, tuple_util:matches_tuple({1, 2, 3, 4}, {1, 2, 3, 4, 5})).
+
+test_record() ->
+    P = person("name", "email", "1111"),
+    ["name", "email", "1111"] = tuple_util:record_to_list(person, P),
+    {"name", "email", "1111"} = tuple_util:record_to_tuple(P),
+    [person,"name", "email", "1111"] = tuple_to_list(P).
 
 test_conversion() ->
     {record4, 1, 2, 3, 4} = tuple_util:tuple_to_record("record", {1, 2, 3, 4}),

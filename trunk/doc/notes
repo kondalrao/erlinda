@@ -1,0 +1,47 @@
+
+create_local_table_copy(Tab, Type) ->
+    StorageType = mnesia:table_info(Tab, storage_type),
+    {atomic, ok} =
+        if
+            StorageType == unknown ->
+                mnesia:add_table_copy(Tab, node(), Type);
+            StorageType /= Type ->
+                mnesia:change_table_copy_type(Tab, node(), Type);
+            true -> {atomic, ok}
+        end,
+    ok.
+
+
+
+init_db(ClusterNodes) ->
+    WasDiskNode = mnesia:system_info(use_dir),
+    IsDiskNode = ClusterNodes == [] orelse
+        lists:member(node(), ClusterNodes),
+    case mnesia:change_config(extra_db_nodes, ClusterNodes -- [node()]) of
+        {ok, []} ->
+            if WasDiskNode and IsDiskNode ->
+                    ok;
+               WasDiskNode ->
+                    throw({error, {cannot_convert_disk_node_to_ram_node,
+                                   ClusterNodes}});
+               IsDiskNode ->
+                    ok = create_schema();
+               true ->
+                    throw({error, {unable_to_contact_cluster_nodes,
+                                   ClusterNodes}})
+            end;
+        {ok, [_|_]} ->
+            ok = ensure_schema_integrity(),
+            ok = wait_for_tables(),
+            ok = create_local_table_copies(
+                   case IsDiskNode of
+                       true  -> disc;
+                       false -> ram
+                   end);
+        {error, Reason} ->
+            throw({error, {unable_to_join_cluster,
+                           ClusterNodes, Reason}})
+    end.
+
+
+
