@@ -1,3 +1,21 @@
+To start our Company database and get it running on the two specified nodes, we enter the following
+commands:
+1. On the node called gin:
+gin %erl -sname a -mnesia dir '"/ldisc/scratch/Mnesia.company"'
+2. On the node called skeppet:
+skeppet %erl -sname b -mnesia dir '"/ldisc/scratch/Mnesia.company"'
+3. On one of the two nodes:
+(a@gin1)>mnesia:create schema([a@gin, b@skeppet]).
+
+
+4. The function mnesia:start() is called on both nodes.
+5. To initialize the database, execute the following code on one of the two nodes.
+dist_init() ->
+mnesia:create_table(employee,
+[{ram_copies, [a@gin, b@skeppet]},
+{attributes, record_info(fields,
+employee)}]),
+
 
 create_local_table_copy(Tab, Type) ->
     StorageType = mnesia:table_info(Tab, storage_type),
@@ -44,4 +62,34 @@ init_db(ClusterNodes) ->
     end.
 
 
+
+all_females() ->
+F = fun() ->
+Female = #employee{sex = female, name = '$1', _ = '_'},
+mnesia:select(employee, [{Female, [], ['$1']}])
+end,
+mnesia:transaction(F).
+
+
+
+
+
+
+
+mnesia:activity(sync_dirty, Write, [lists:seq(1, 256)], mnesia_frag).
+ok
+(a@sam)7> mnesia:change_table_frag(Tab, {activate, []}).
+{atomic,ok}
+(a@sam)8> mnesia:table_info(Tab, frag_properties).
+[{base_table,dictionary},
+{foreign_key,undefined},
+{n_doubles,0},
+{n_fragments,1},
+{next_n_to_split,1},
+{node_pool,[a@sam,b@sam,c@sam]}]
+(a@sam)9> Info = fun(Item) -> mnesia:table_info(Tab, Item) end.
+#Fun<erl_eval>
+(a@sam)10> Dist = mnesia:activity(sync_dirty, Info, [frag_dist], mnesia_frag).
+[{c@sam,0},{a@sam,1},{b@sam,1}]
+(a@sam)11> mnesia:change_table_frag(Tab, {add_frag, Dist}).
 

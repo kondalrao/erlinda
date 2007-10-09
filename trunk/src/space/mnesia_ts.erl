@@ -35,7 +35,7 @@
 %%--------------------------------------------------------------------
 new(TupleSpaceName) ->
     start_mnesia_if_not_running(),
-    create_table_if_not_exist(TupleSpaceName).
+    create_table(TupleSpaceName).
 
 
 %%--------------------------------------------------------------------
@@ -113,8 +113,9 @@ start_mnesia_if_not_running() ->
             mnesia:start();
         yes -> false
     end.
-create_table_if_not_exist(Table) ->
+create_table(Table) ->
     %mnesia:wait_for_tables(Table, 60000)
+    catch mnesia:delete_table(Table),
     mnesia:create_table(Table,
                          [{type, duplicate_bag}, {ram_copies, [node()]}
                           %{index, [word]},
