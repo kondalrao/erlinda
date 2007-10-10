@@ -20,7 +20,7 @@
 %% External exports for APIs
 %%--------------------------------------------------------------------
 -export([
-	 new/1,
+	 create/1,
 	 get/3,
 	 size/1,
 	 put/2,
@@ -29,11 +29,11 @@
 
 
 %%--------------------------------------------------------------------
-%% Function: new/1
+%% Function: create/1
 %% Description: creates a new mnesia table
 %% Returns: tuple space name
 %%--------------------------------------------------------------------
-new(TupleSpaceName) ->
+create(TupleSpaceName) ->
     start_mnesia_if_not_running(),
     create_table(TupleSpaceName).
 
@@ -138,6 +138,3 @@ is_db_empty(TupleSpaces) ->
 
 mnesia_dir() ->
    mnesia:system_info(directory) ++ "/".
-
-
-
