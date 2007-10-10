@@ -20,7 +20,7 @@
 %% External exports for APIs
 %%--------------------------------------------------------------------
 -export([
-	 new/1,
+	 create/1,
 	 get/3,
 	 size/1,
 	 put/2,
@@ -29,11 +29,11 @@
 
 
 %%--------------------------------------------------------------------
-%% Function: new/1
-%% Description: creates a new dets 
+%% Function: create/1
+%% Description: creates a create dets 
 %% Returns: DETS instance
 %%--------------------------------------------------------------------
-new(TupleSpaceName) ->
+create(TupleSpaceName) ->
     case dets:open_file(TupleSpaceName, [{type, bag}, {file, [TupleSpaceName]}]) of
         {ok, TupleSpaceName} ->
             TupleSpaceName;
