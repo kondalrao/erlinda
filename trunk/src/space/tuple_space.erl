@@ -61,8 +61,8 @@
 %% @end
 %%--------------------------------------------------------------------
 start(Type, StartArgs) ->
-    case ts_sup:start_link(StartArgs) of
     %case ts_server:start_link(StartArgs) of
+    case ts_sup:start_link(StartArgs) of
 	{ok, Pid} -> 
 	    {ok, Pid};
 	Error ->
@@ -81,14 +81,15 @@ shutdown() ->
 %%--------------------------------------------------------------------
 %% @doc Stores a tuple
 %% Types:
+%%  Pid = pid()
 %%  Node = node()
 %%  Tuple = tuple()
 %% </pre>
 %% @spec put(Tuple) -> ok
 %% @end
 %%--------------------------------------------------------------------
-put(Node, Tuple) ->
-    ts_server:put(Node, Tuple).
+put(Pid, Tuple) ->
+    ts_server:put(Pid, Tuple).
 
 %%--------------------------------------------------------------------
 %% @doc Removes a matching tuple and returns it. If the no tuple
@@ -96,6 +97,7 @@ put(Node, Tuple) ->
 %%    one tuples matches then a random tuple will be returned.
 %% <pre>
 %% Types:
+%%  Pid = pid()
 %%  Node = node()
 %%  TemplateTuple = tuple()
 %%  Timeout = atom()
@@ -103,24 +105,25 @@ put(Node, Tuple) ->
 %% @spec get(TemplateTuple, Timeout) -> {ok, Tuple} | {timeout, Reason} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-get(Node, TemplateTuple, Timeout) ->
-    ts_server:get(Node, TemplateTuple, Timeout).
+get(Pid, TemplateTuple, Timeout) ->
+    ts_server:get(Pid, TemplateTuple, Timeout).
 
 
 %%--------------------------------------------------------------------
 %% @doc Returns number of tuples in the tuple space.
 %% <pre>
 %% Types:
+%%  Pid = pid()
 %%  Node = node()
 %% </pre>
 %% @spec size() -> {ok, term} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-size(Node) -> 
-    ts_server:size(Node).
+size(Pid) -> 
+    ts_server:size(Pid).
 
-crash(Node) -> 
-    ts_server:crash(Node).
+crash(Pid) -> 
+    ts_server:crash(Pid).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -129,14 +132,15 @@ crash(Node) ->
 %% or {tuple_removed, tuple}.
 %% <pre>
 %% Types:
+%%  Pid = pid()
 %%  Node = node()
 %%  TemplateTuple = tuple()
 %% </pre>
 %% @spec subscribe(Node, TemplateTuple) -> bool() | EXIT
 %% @end
 %%--------------------------------------------------------------------
-subscribe(Node, TemplateTuple) ->
-    ts_server:subscribe(Node, TemplateTuple).
+subscribe(Pid, TemplateTuple) ->
+    ts_server:subscribe(Pid, TemplateTuple).
 
 
 %%====================================================================

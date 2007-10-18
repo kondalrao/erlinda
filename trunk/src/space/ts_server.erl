@@ -191,21 +191,21 @@ handle_call({get, {TemplateTuple, Timeout}}, From, State) ->
             {reply, Resp, State}
     end;
 
-handle_call({size, {TupleSpaceName}}, From, State) ->
-    TupleSpace = dict:fetch(TupleSpaceName, TupleSpacesMap),
+handle_call({size, {}}, From, State) ->
+    TupleSpace = State#state.tuple_space,
     Size = ?TUPLE_SPACE_PROVIDER:size(TupleSpace),
     {reply, {ok, Size}, State};
 
-handle_call({crash, {}}, From, {TupleSpacesMap, Subscriptions, Timers} = State) ->
+handle_call({crash, {}}, From, State) ->
     1 = 2.
 
-handle_call({subscribe, {TupleSpaceName, TemplateTuple, Subscriber}}, From, {TupleSpacesMap, Subscriptions, Timers} = State) ->
-    TupleSpace = dict:fetch(TupleSpaceName, TupleSpacesMap),
-    NewSubscriptions = dict:store(TemplateTuple, {Subscriber, false}, Subscriptions),
-    NewState         = {TupleSpacesMap, NewSubscriptions, Timers},
+handle_call({subscribe, {TemplateTuple, Subscriber}}, From, State) ->
+    TupleSpace = State#state.tuple_space,
+    NewSubscriptions = dict:store(TemplateTuple, {Subscriber, false}, State#state.subscriptions),
+    NewState = State#state{subscriptions = NewSubscriptions},
     {reply, true, NewState};
 
-handle_call(Request, From, {TupleSpacesMap, Subscriptions, Timers} = State) ->
+handle_call(Request, From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
@@ -222,16 +222,11 @@ handle_call(Request, From, {TupleSpacesMap, Subscriptions, Timers} = State) ->
 handle_cast(stop, State) ->
     {stop, normal, State};
 
-
-handle_cast({new, TupleSpaceName}, {TupleSpacesMap, Subscriptions, Timers} = State) -> 
-    TupleSpacesMap1 = dict:store(TupleSpaceName, ?TUPLE_SPACE_PROVIDER:new(TupleSpaceName), TupleSpacesMap),
-    NewState         = {TupleSpacesMap1, Subscriptions, Timers},
-    {noreply, NewState};
-handle_cast({put, TupleSpaceName, Tuple}, {TupleSpacesMap, Subscriptions, Timers} = State) -> 
-    TupleSpace = dict:fetch(TupleSpaceName, TupleSpacesMap),
+handle_cast({put, Tuple}, State) -> 
+    TupleSpace = State#state.tuple_space,
     ?TUPLE_SPACE_PROVIDER:put(TupleSpace, Tuple),
     {Tuple, NewSubscriptions} = dict:fold(fun notify_tuple_added/3, {Tuple, Subscriptions}, Subscriptions),
-    NewState = {TupleSpacesMap, NewSubscriptions, Timers},
+    NewState = State#state{subscriptions = NewSubscriptions},
     {noreply, NewState};
 handle_cast(Msg, State) ->
     {noreply, State}.
@@ -244,15 +239,16 @@ handle_cast(Msg, State) ->
 %%          {noreply, State, Timeout} |
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
-handle_info({'EXIT', Pid, Reason}, {TupleSpacesMap, Subscriptions, Timers} = State) ->
-    cleanup(TupleSpacesMap, Subscriptions, Timers),
+handle_info({'EXIT', Pid, Reason}, State) ->
+    cleanup(State),
     %unlink(Res),
     %exit(Res, Reason),
     {noreply, State};
-handle_info({timedout, From, TemplateTuple}, {TupleSpacesMap, Subscriptions, Timers} = State) ->
+handle_info({timedout, From, TemplateTuple}, State) ->
     gen_server:reply(From, {timedout, TemplateTuple}),
-    NewSubscriptions = dict:erase(TemplateTuple, Subscriptions),
-    {noreply, {TupleSpacesMap, NewSubscriptions, Timers}};
+    NewSubscriptions = dict:erase(TemplateTuple, State#state.subscriptions),
+    NewState = State#state{subscriptions = NewSubscriptions},
+    {noreply, NewState};
 handle_info(Info, State) ->
     {noreply, State}.
 
@@ -340,13 +336,13 @@ terminate_timers(Timer) ->
     %error_logger:info_msg("cancelling timer ~p~n", [Timer]),
     catch Timer ! {cancel_timer}.
 
-delete_tuple_space(_, TupleSpace, _) ->
-    catch ?TUPLE_SPACE_PROVIDER:delete(TupleSpace).
 
 %%
 %%% this method cleans up resources when the server dies
 %%
-cleanup(TupleSpacesMap, Subscriptions, Timers) ->
-    catch dict:fold(fun delete_tuple_space/3, nil, TupleSpacesMap),
-    catch dict:fold(fun notify_server_terminated/3, nil, Subscriptions),
-    catch lists:foreach(fun terminate_timers/1, Timers).
+cleanup(State) ->
+    TupleSpace = State#state.tuple_space,
+    catch ?TUPLE_SPACE_PROVIDER:delete(TupleSpace).
+    %%%
+    catch dict:fold(fun notify_server_terminated/3, nil, State#state.subscriptions),
+    catch lists:foreach(fun terminate_timers/1, State#state.timers).

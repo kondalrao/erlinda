@@ -38,14 +38,14 @@ test() ->
         %debug_helper:trace(tuple_space_test),
 	%application:load(tuple_space),
 	%application:start(tuple_space),
-        tuple_space:start(type, ["dets_storage_tuple"]),
-        start_slave(5),
-        start_subscriber(),
+        {ok, Pid} = tuple_space:start(type, ["dets_storage_tuple"]),
+        start_slave(Pid, 5),
+        start_subscriber(Pid),
         sleep(1000), % let it register
-        start_master(5),
+        start_master(Pid, 5),
         error_logger:info_msg("          ****Finished starting...~n"),
         sleep(5000),
-        error_logger:info_msg("          ****Last Size of tuple space ~p~n", [tuple_space:size(node())])
+        error_logger:info_msg("          ****Last Size of tuple space ~p~n", [tuple_space:size(Pid)])
     catch
         Ex ->
             io:format("test caught ~p~n", [Ex])
@@ -57,30 +57,30 @@ test() ->
 %% Internal functions
 %%====================================================================
 
-start_subscriber() ->
+start_subscriber(Pid) ->
     spawn(fun() -> 
-        tuple_space:subscribe(node(), {tuple_record, '_'}),
+        tuple_space:subscribe(Pid, {tuple_record, '_'}),
 	listen_events()
         end).
 
 
-start_master(0) ->
+start_master(Pid, 0) ->
     true;
-start_master(N) ->
+start_master(Pid, N) ->
     error_logger:info_msg("          Adding tuples ~p ~n", [N]),
-    spawn(fun() -> tuple_space:put(node(), {tuple_record, N}) end),
-    start_master(N-1).
+    spawn(fun() -> tuple_space:put(Pid, {tuple_record, N}) end),
+    start_master(Pid, N-1).
 
 
 
-start_slave(0) ->
+start_slave(Pid, 0) ->
     true;
-start_slave(N) ->
-    spawn(fun() -> slave_loop(N) end),
-    start_slave(N-1).
+start_slave(Pid, N) ->
+    spawn(fun() -> slave_loop(Pid, N) end),
+    start_slave(Pid, N-1).
 
-slave_loop(N) ->
-   Tuple = tuple_space:get(node(), {tuple_record, '_'}, 10000),
+slave_loop(Pid, N) ->
+   Tuple = tuple_space:get(Pid, {tuple_record, '_'}, 10000),
    error_logger:info_msg("          Getting tuples ~p for N ~p~n", [Tuple, N]),
    sleep(1000),
    slave_loop(N).
