@@ -51,7 +51,7 @@
 %%--------------------------------------------------------------------
 %% record definitions
 %%--------------------------------------------------------------------
--record(state, {tuple_space_name, tuple_space, subscriptions, timers}).
+-record(state, {tuple_space, subscriptions=dict:new(), timers=[]}).
 
 
 %%--------------------------------------------------------------------
@@ -69,7 +69,8 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(StartArgs) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, StartArgs, []).
+    %gen_server:start_link({local, ?SERVER}, ?MODULE, StartArgs, []).
+    gen_server:start_link(?MODULE, StartArgs, []).
 
 %%--------------------------------------------------------------------
 %% @doc Stops the server.
@@ -77,7 +78,9 @@ start_link(StartArgs) ->
 %% @end
 %%--------------------------------------------------------------------
 stop() ->
-    gen_server:cast(?SERVER, stop).
+    gen_server:cast(?SERVER, stop).     % named stateless server
+stop(Pid) ->
+    gen_server:cast(Pid, stop).         % stateful server
 
 %%--------------------------------------------------------------------
 %% @doc Stores a tuple
@@ -88,8 +91,10 @@ stop() ->
 %% @spec put(Tuple) -> ok
 %% @end
 %%--------------------------------------------------------------------
-put(Node, Tuple) when is_tuple(Tuple) ->
-    gen_server:cast({?SERVER, Node}, {put, Tuple}).
+%put(Node, Tuple) when is_tuple(Tuple) ->
+%    gen_server:cast({?SERVER, Node}, {put, Tuple}).
+put(Pid, Tuple) when is_tuple(Tuple) ->
+    gen_server:cast(Pid, {put, Tuple}).
 
 %%--------------------------------------------------------------------
 %% @doc Removes a matching tuple and returns it. If the no tuple
@@ -104,8 +109,10 @@ put(Node, Tuple) when is_tuple(Tuple) ->
 %% @spec get(TemplateTuple, Timeout) -> {ok, Tuple} | {error, timeout} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_integer(Timeout) ->
-    gen_server:call({?SERVER, Node}, {get, {TemplateTuple, Timeout}}).
+%get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_integer(Timeout) ->
+%    gen_server:call({?SERVER, Node}, {get, {TemplateTuple, Timeout}}).
+get(Pid, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_integer(Timeout) ->
+    gen_server:call(Pid, {get, {TemplateTuple, Timeout}}).
 
 %%--------------------------------------------------------------------
 %% @doc Returns number of tuples in the tuple space.
@@ -116,10 +123,13 @@ get(Node, TemplateTuple, Timeout) when is_tuple(TemplateTuple), is_integer(Timeo
 %% @spec size() -> {ok, term} | {error, Reason} | EXIT
 %% @end
 %%--------------------------------------------------------------------
-size(Node) -> 
-    gen_server:call({?SERVER, Node}, {size, {}}).
-crash(Node) -> 
-    gen_server:call({?SERVER, Node}, {crash, {}}).
+%size(Node) -> 
+%    gen_server:call({?SERVER, Node}, {size, {}}).
+size(Pid) -> 
+    gen_server:call(Pid, {size, {}}).
+
+crash(Pid) -> 
+    gen_server:call(Pid, {crash, {}}).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -134,8 +144,10 @@ crash(Node) ->
 %% @spec subscribe(Node, TemplateTuple) -> bool() | EXIT
 %% @end
 %%--------------------------------------------------------------------
-subscribe(Node, TemplateTuple) ->
-    gen_server:call({?SERVER, Node}, {subscribe, {TemplateTuple, self()}}).
+%subscribe(Node, TemplateTuple) ->
+%    gen_server:call({?SERVER, Node}, {subscribe, {TemplateTuple, self()}}).
+subscribe(Pid, TemplateTuple) ->
+    gen_server:call(Pid, {subscribe, {TemplateTuple, self()}}).
 
 
 %%====================================================================
@@ -153,7 +165,8 @@ subscribe(Node, TemplateTuple) ->
 init([]) ->
     process_flag(trap_exit, true),
     error_logger:info_msg("ts_server:init/1 starting ~n"),
-    {ok, {dict:new(), dict:new(), []}}.
+    TupleSpace = ?TUPLE_SPACE_PROVIDER:new("TupleSpaceName"),
+    {ok, #state{tuple_space = TupleSpace}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -165,20 +178,20 @@ init([]) ->
 %%          {stop, Reason, Reply, State}   | (terminate/2 is called)
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
-handle_call({get, {TupleSpaceName, TemplateTuple, Timeout}}, From, {TupleSpacesMap, Subscriptions, Timers} = State) ->
-    TupleSpace = dict:fetch(TupleSpaceName, TupleSpacesMap),
+handle_call({get, {TemplateTuple, Timeout}}, From, State) ->
+    TupleSpace = State#state.tuple_space,
     Resp = ?TUPLE_SPACE_PROVIDER:get(TupleSpace, TemplateTuple, Timeout),
     case Resp of 
         {error, nomatch} ->
-            NewSubscriptions = dict:store(TemplateTuple, {From, true}, Subscriptions),
+            NewSubscriptions = dict:store(TemplateTuple, {From, true}, State#state.subscriptions),
 	    NewTimer = start_timeout_timer(From, TemplateTuple, Timeout),
-            NewState         = {TupleSpacesMap, NewSubscriptions, [NewTimer|Timers]},
+            NewState = State#state{subscriptions = NewSubscriptions, timers = [NewTimer|State#state.timers]},
             {noreply, NewState};
         {ok, _} ->
             {reply, Resp, State}
     end;
 
-handle_call({size, {TupleSpaceName}}, From, {TupleSpacesMap, Subscriptions, Timers} = State) ->
+handle_call({size, {TupleSpaceName}}, From, State) ->
     TupleSpace = dict:fetch(TupleSpaceName, TupleSpacesMap),
     Size = ?TUPLE_SPACE_PROVIDER:size(TupleSpace),
     {reply, {ok, Size}, State};
