@@ -20,7 +20,7 @@
 %% External exports for APIs
 %%--------------------------------------------------------------------
 -export([
-	 create/1,
+	 new/1,
 	 get/3,
 	 size/1,
 	 put/2,
@@ -29,11 +29,11 @@
 
 
 %%--------------------------------------------------------------------
-%% Function: create/1
-%% Description: creates a create ets 
+%% Function: new/1
+%% Description: news a new ets 
 %% Returns: ETS instance
 %%--------------------------------------------------------------------
-create (TupleSpaceName) ->
+new (TupleSpaceName) ->
     ets:new(list_to_atom(TupleSpaceName), [bag]).
 
 

@@ -20,7 +20,7 @@
 %% External exports for APIs
 %%--------------------------------------------------------------------
 -export([
-	 create/1,
+	 new/1,
 	 get/3,
 	 size/1,
 	 put/2,
@@ -29,13 +29,13 @@
 
 
 %%--------------------------------------------------------------------
-%% Function: create/1
-%% Description: creates a new mnesia table
+%% Function: new/1
+%% Description: news a new mnesia table
 %% Returns: tuple space name
 %%--------------------------------------------------------------------
-create(TupleSpaceName) ->
+new(TupleSpaceName) ->
     start_mnesia_if_not_running(),
-    create_table(TupleSpaceName).
+    new_table(TupleSpaceName).
 
 
 %%--------------------------------------------------------------------
@@ -109,14 +109,14 @@ delete(TupleSpace, Tuple) ->
 start_mnesia_if_not_running() ->
     case mnesia:system_info(is_running) of
         no -> 
-            mnesia:create_schema([node()]),
+            mnesia:new_schema([node()]),
             mnesia:start();
         yes -> false
     end.
-create_table(TupleSpace) ->
+new_table(TupleSpace) ->
     %mnesia:wait_for_tables(TupleSpace, 60000)
     delete(TupleSpace),
-    mnesia:create_table(TupleSpace,
+    mnesia:new_table(TupleSpace,
                          [{type, duplicate_bag}, {ram_copies, [node()]}
                           %{index, [word]},
                           %{attributes, record_info(fields,TupleSpace)}

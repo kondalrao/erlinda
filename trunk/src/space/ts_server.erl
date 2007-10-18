@@ -51,7 +51,8 @@
 %%--------------------------------------------------------------------
 %% record definitions
 %%--------------------------------------------------------------------
--record(state, {}).
+-record(state, {tuple_space_name, tuple_space, subscriptions, timers}).
+
 
 %%--------------------------------------------------------------------
 %% macro definitions
@@ -209,7 +210,7 @@ handle_cast(stop, State) ->
     {stop, normal, State};
 
 
-handle_cast({create, TupleSpaceName}, {TupleSpacesMap, Subscriptions, Timers} = State) -> 
+handle_cast({new, TupleSpaceName}, {TupleSpacesMap, Subscriptions, Timers} = State) -> 
     TupleSpacesMap1 = dict:store(TupleSpaceName, ?TUPLE_SPACE_PROVIDER:new(TupleSpaceName), TupleSpacesMap),
     NewState         = {TupleSpacesMap1, Subscriptions, Timers},
     {noreply, NewState};
