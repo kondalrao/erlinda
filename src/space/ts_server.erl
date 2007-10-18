@@ -197,7 +197,7 @@ handle_call({size, {}}, From, State) ->
     {reply, {ok, Size}, State};
 
 handle_call({crash, {}}, From, State) ->
-    1 = 2.
+    1 = 2;
 
 handle_call({subscribe, {TemplateTuple, Subscriber}}, From, State) ->
     TupleSpace = State#state.tuple_space,
@@ -225,7 +225,7 @@ handle_cast(stop, State) ->
 handle_cast({put, Tuple}, State) -> 
     TupleSpace = State#state.tuple_space,
     ?TUPLE_SPACE_PROVIDER:put(TupleSpace, Tuple),
-    {Tuple, NewSubscriptions} = dict:fold(fun notify_tuple_added/3, {Tuple, Subscriptions}, Subscriptions),
+    {Tuple, NewSubscriptions} = dict:fold(fun notify_tuple_added/3, {Tuple, State#state.subscriptions}, State#state.subscriptions),
     NewState = State#state{subscriptions = NewSubscriptions},
     {noreply, NewState};
 handle_cast(Msg, State) ->
@@ -257,9 +257,9 @@ handle_info(Info, State) ->
 %% Description: Shutdown the server
 %% Returns: any (ignored by gen_server)
 %%--------------------------------------------------------------------
-terminate(Reason, {TupleSpacesMap, Subscriptions, Timers} = State) ->
+terminate(Reason, State) ->
     error_logger:info_msg("ts_server:terminate/2 shutting down.~n", []),
-    cleanup(TupleSpacesMap, Subscriptions, Timers),
+    cleanup(State),
     ok.
 
 %%--------------------------------------------------------------------
@@ -342,7 +342,7 @@ terminate_timers(Timer) ->
 %%
 cleanup(State) ->
     TupleSpace = State#state.tuple_space,
-    catch ?TUPLE_SPACE_PROVIDER:delete(TupleSpace).
+    catch ?TUPLE_SPACE_PROVIDER:delete(TupleSpace),
     %%%
     catch dict:fold(fun notify_server_terminated/3, nil, State#state.subscriptions),
     catch lists:foreach(fun terminate_timers/1, State#state.timers).
