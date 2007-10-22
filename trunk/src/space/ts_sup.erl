@@ -64,7 +64,8 @@ start_in_shell_for_testing() ->
 %% @end
 %%--------------------------------------------------------------------
 start_link(StartArgs) ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, StartArgs).
+    %supervisor:start_link({local, ?SERVER}, ?MODULE, StartArgs).
+    supervisor:start_link(?MODULE, StartArgs).
 
 %%====================================================================
 %% Server functions

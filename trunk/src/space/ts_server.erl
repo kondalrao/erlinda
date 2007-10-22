@@ -58,7 +58,7 @@
 %% macro definitions
 %%--------------------------------------------------------------------
 -define(SERVER, ?MODULE).
--define(TUPLE_SPACE_PROVIDER, ets_ts).   %% dets_ts, mnesia_ts
+-define(TUPLE_SPACE_PROVIDER, mnesia_ts).   %% ets_ts, dets_ts, mnesia_ts
 
 %%====================================================================
 %% External functions
@@ -70,7 +70,7 @@
 %%--------------------------------------------------------------------
 start_link(StartArgs) ->
     %gen_server:start_link({local, ?SERVER}, ?MODULE, StartArgs, []).
-    gen_server:start_link(?MODULE, StartArgs, []).
+    gen_server:start_link(?MODULE, [], []).
 
 %%--------------------------------------------------------------------
 %% @doc Stops the server.
@@ -192,8 +192,10 @@ handle_call({get, {TemplateTuple, Timeout}}, From, State) ->
     end;
 
 handle_call({size, {}}, From, State) ->
+io:format("finding size...~n"),
     TupleSpace = State#state.tuple_space,
     Size = ?TUPLE_SPACE_PROVIDER:size(TupleSpace),
+io:format("found size ~p~n", [Size]),
     {reply, {ok, Size}, State};
 
 handle_call({crash, {}}, From, State) ->
