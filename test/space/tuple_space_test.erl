@@ -33,11 +33,13 @@ test() ->
     try 
         debug_helper:start(),
         %debug_helper:trace(tuple_space),
-        %debug_helper:trace(ts_server),
+        debug_helper:trace(ts_server),
+        debug_helper:trace(ts_mnesia),
         %debug_helper:trace(ts_ets),
         %debug_helper:trace(tuple_space_test),
 	%application:load(tuple_space),
 	%application:start(tuple_space),
+        tuple_space:start(type, ["dets_storage_tuple"]),
         {ok, Pid} = tuple_space:start(type, ["dets_storage_tuple"]),
         start_slave(Pid, 5),
         start_subscriber(Pid),
@@ -83,7 +85,7 @@ slave_loop(Pid, N) ->
    Tuple = tuple_space:get(Pid, {tuple_record, '_'}, 10000),
    error_logger:info_msg("          Getting tuples ~p for N ~p~n", [Tuple, N]),
    sleep(1000),
-   slave_loop(N).
+   slave_loop(Pid, N).
       
 
 sleep(T) ->
