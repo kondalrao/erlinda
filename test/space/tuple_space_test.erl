@@ -43,6 +43,11 @@ test() ->
     io:format("Size after adding ~p is ~p~n", [Record, Size]),
     %%%
     Template = {'_', 2, '_'},
+     = case Result of
+               {atomic, []} -> {error, nomatch};
+               {atomic, [R|_]} -> {ok, R};
+               {aborted, _} -> {error, nomatch}
+        end,
     {ok, Found} = mnesia_ts:get(Base, Template, 2),
     io:format("~n--- Found ~p~n", [Found]),
     %%%
