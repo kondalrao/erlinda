@@ -45,8 +45,8 @@ new(TupleSpaceName) ->
 %% Returns: {ok, Tuple} |
 %%%         {error, nomatch}
 %%--------------------------------------------------------------------
-get(TupleSpace, TemplateTuple, Timeout) ->
-    Record = record(TupleSpace, TemplateTuple),
+get(BaseTupleSpace, TemplateTuple, Timeout) ->
+    Record = get_record(BaseTupleSpace, TemplateTuple),
     %mnesia:abort({vhost_already_exists, VHostPath})
     % mnesia:dirty_read(TemplateTuple),
     % mnesia:index_read(TemplateTuple, TemplateTuple, TemplateTuple)
@@ -69,16 +69,16 @@ get(TupleSpace, TemplateTuple, Timeout) ->
 %% Description: returns number of tuples
 %% Returns: number of tuples
 %%--------------------------------------------------------------------
-size(TupleSpace) ->
-    mnesia:table_info(TupleSpace, size).
+size(BaseTupleSpace) ->
+    mnesia:table_info(BaseTupleSpace, size).
 
 %%--------------------------------------------------------------------
 %% Function: put/2
 %% Description: adds a tuple to the tuple space.
 %% Returns: 
 %%--------------------------------------------------------------------
-put(TupleSpace, Tuple) ->
-    Record = record(TupleSpace, Tuple),
+put(BaseTupleSpace, Tuple) ->
+    Record = get_record(BaseTupleSpace, Tuple),
     %ok = mnesia:dirty_write(Record),
     mnesia:transaction(
        fun () -> mnesia:write(Record) 
@@ -90,16 +90,16 @@ put(TupleSpace, Tuple) ->
 %% Description: deletes tuple space.
 %% Returns: 
 %%--------------------------------------------------------------------
-delete(TupleSpace) ->
-    catch mnesia:delete_table(TupleSpace).
+delete(BaseTupleSpace) ->
+    catch mnesia:delete_table(BaseTupleSpace).
 
 %%--------------------------------------------------------------------
 %% Function: delete/2
 %% Description: deletes a tuple from tuple space.
 %% Returns: 
 %%--------------------------------------------------------------------
-delete(TupleSpace, Tuple) ->
-    Record = record(TupleSpace, Tuple),
+delete(BaseTupleSpace, Tuple) ->
+    Record = get_record(BaseTupleSpace, Tuple),
     mnesia:transaction(
        fun () -> mnesia:delete(Record) 
     end).
@@ -145,7 +145,7 @@ mnesia_dir() ->
    mnesia:system_info(directory) ++ "/".
 
 
-record(BaseName, Tuple) ->
+get_record(BaseName, Tuple) ->
     RecordName = tuple_util:record_name(BaseName, Tuple),
     %try
     %    X = mnesia:table_info(RecordName, version),
