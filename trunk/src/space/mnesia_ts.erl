@@ -68,7 +68,8 @@ get(BaseTupleSpace, TemplateTuple, Timeout) ->
 
     X = case Result of
                {atomic, []} -> {error, nomatch};
-               {atomic, [R|_]} -> {ok, R}
+               {atomic, [R|_]} -> {ok, R};
+               {aborted, _} -> {error, nomatch}
         end,
     error_logger:info_msg(">>>>>================get parameters ~p -- ~p~n", [Record, X]),
     X.
