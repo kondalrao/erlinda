@@ -46,7 +46,7 @@ new(TupleSpaceName) ->
 %%%         {error, nomatch}
 %%--------------------------------------------------------------------
 get(BaseTupleSpace, TemplateTuple, Timeout) ->
-    Record = get_record(BaseTupleSpace, TemplateTuple),
+    {TupleSpace, Record} = get_record(BaseTupleSpace, TemplateTuple),
     %mnesia:abort({vhost_already_exists, VHostPath})
     % mnesia:dirty_read(TemplateTuple),
     % mnesia:index_read(TemplateTuple, TemplateTuple, TemplateTuple)
@@ -60,7 +60,10 @@ get(BaseTupleSpace, TemplateTuple, Timeout) ->
     %       end
     %   end).
     error_logger:info_msg("----------------get parameters ~p ~n", [Record]),
-    X = mnesia:dirty_match_object(Record),
+    %X = mnesia:dirty_match_object(Record),
+    X = mnesia:transaction(
+          fun () -> mnesia:select(TupleSpace, Record, 1, read)
+       end),
     error_logger:info_msg(">>>>>================get parameters ~p -- ~p~n", [Record, X]),
     X.
 
@@ -78,7 +81,7 @@ size(BaseTupleSpace) ->
 %% Returns: 
 %%--------------------------------------------------------------------
 put(BaseTupleSpace, Tuple) ->
-    Record = get_record(BaseTupleSpace, Tuple),
+    {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
     %ok = mnesia:dirty_write(Record),
     mnesia:transaction(
        fun () -> mnesia:write(Record) 
@@ -99,7 +102,7 @@ delete(BaseTupleSpace) ->
 %% Returns: 
 %%--------------------------------------------------------------------
 delete(BaseTupleSpace, Tuple) ->
-    Record = get_record(BaseTupleSpace, Tuple),
+    {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
     mnesia:transaction(
        fun () -> mnesia:delete(Record) 
     end).
@@ -155,4 +158,4 @@ get_record(BaseName, Tuple) ->
     %    error:Reason -> new_table(RecordName)
     %end,
     new_table(RecordName),
-    tuple_util:tuple_to_record(RecordName, Tuple).
+    {RecordName, tuple_util:tuple_to_record(RecordName, Tuple)}.

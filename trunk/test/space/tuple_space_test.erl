@@ -32,31 +32,31 @@
 %% External functions
 %%====================================================================
 test() ->
-    {TupleSpace, Recordx} = get_record("base", {1, 2, 3}),
+    Record = #base3{one = 1, two = 2, three = 3},
+    {TupleSpace, XRecord} = get_record("base", {1, 2, 3}),
     io:format("Created table ~p~n", [TupleSpace]),
 
-    Record = #base3{one = 1, two = 2, three = 3},
     mnesia:transaction(
        fun () -> mnesia:write(Record) 
     end),
 
-    %Size = mnesia:table_info(TupleSpace, size),
     Size = mnesia:table_info(base3, size),
     io:format("~p --- Size after adding ~p is ~p~n", [TupleSpace, Record, Size]),
 
-    Template = {'_', 2, '_'},
-    try
-        Found = mnesia:dirty_match_object(Template),
-        mnesia:transaction(
-           fun () -> mnesia:delete(Found) 
-        end)
-    catch 
-        Ex ->
-            io:format("Found caught ~p~n", [Ex])
-    end,
+    %%%Template = {base3, '_', 2, '_'},
+    Template = #base3{one = '_', two = 2, three = '_'},
+    Found = mnesia:transaction(
+          fun () -> mnesia:match_object(TupleSpace, Template)
+          %fun () -> mnesia:select(TupleSpace, Template, 1, read)
+       end),
+    io:format("~p --- Found ~p~n", [Found]),
+
+    mnesia:transaction(
+       fun () -> mnesia:delete(Found) 
+    end),
 
     Size1 = mnesia:table_info(TupleSpace, size),
-    io:format("Size after adding ~p~n", [Size1]),
+    io:format("Size after deleting ~p~n", [Size1]),
 
     mnesia:delete_table(TupleSpace),
 
@@ -155,13 +155,16 @@ get_record(BaseName, Tuple) ->
 
 
 new_table(TupleSpace) ->
+    mnesia:create_schema([node()]),
+    mnesia:start(),
     io:format("creating table ~p~n", [TupleSpace]),
     %mnesia:create_table(TupleSpace,
-    %                     [{type, duplicate_bag}, {ram_copies, [node()]}
+    %                     [{type, duplicate_bag}, {disc_copies, [node()]}
+    %                      %{attributes, record_info(fields,TupleSpace)}
     %                    ]).
 
     mnesia:create_table(base3,
-                         [{type, ordered_set}, {disc_copies, [node()]},
+                         [{type, ordered_set}, {ram_copies, [node()]},
                           %{index, [word]},
                           {attributes, record_info(fields,base3)}
                         ]).
