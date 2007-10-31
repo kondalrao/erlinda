@@ -36,21 +36,21 @@ test() ->
     mnesia_ts:new(Base),
     Record = {1, 2, 3},
     io:format("Adding tuple ~p~n", [Record]),
-
+    %%%
     mnesia_ts:put(Base, Record),
-
+    %%%
     Size = mnesia_ts:size(basename3),
     io:format("Size after adding ~p is ~p~n", [Record, Size]),
-
+    %%%
     Template = {'_', 2, '_'},
     {ok, Found} = mnesia_ts:get(Base, Template, 2),
     io:format("~n--- Found ~p~n", [Found]),
-
+    %%%
     Size1 = mnesia_ts:size(basename3),
     io:format("Size after deleting ~p~n", [Size1]),
-
+    %%%
     mnesia_ts:delete(Base, Found),
-
+    %%%
     io:format("End!!!!~n").
 
 

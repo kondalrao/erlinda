@@ -93,7 +93,7 @@ put(BaseTupleSpace, Tuple) ->
     mnesia:transaction(
        fun () -> mnesia:write(Record) 
     end),
-    error_logger:info_msg(">>>>>================size ~p~n", [mnesia_ts:size(basename3)]).
+    error_logger:info_msg(">>>>>================adding ~p size ~p~n", [Record, mnesia_ts:size(basename3)]).
 
 
 %%--------------------------------------------------------------------
