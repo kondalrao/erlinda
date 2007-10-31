@@ -16,6 +16,9 @@
 -module(mnesia_ts).
 -author("Shahzad Bhatti <bhatti@plexobject.com> [http://bhatti.plexobject.com]").
 
+
+-record(basename3, {one, two, three}).
+
 %%--------------------------------------------------------------------
 %% External exports for APIs
 %%--------------------------------------------------------------------
@@ -33,9 +36,9 @@
 %% Description: news a new mnesia table
 %% Returns: tuple space name
 %%--------------------------------------------------------------------
-new(TupleSpaceName) -> 
+new(BaseTupleSpaceName) -> 
     start_mnesia_if_not_running(),
-    TupleSpaceName.
+    BaseTupleSpaceName.
 
 
 %%--------------------------------------------------------------------
@@ -54,16 +57,19 @@ get(BaseTupleSpace, TemplateTuple, Timeout) ->
 
     %mnesia:transaction(
     %   fun () ->
-    %       case mnesia:match_object(Record) of
-    %           [] -> {error, nomatch};
-    %           [R] -> {ok, R}
     %       end
     %   end).
     error_logger:info_msg("----------------get parameters ~p ~n", [Record]),
-    %X = mnesia:dirty_match_object(Record),
-    X = mnesia:transaction(
-          fun () -> mnesia:select(TupleSpace, Record, 1, read)
+    %R = mnesia:dirty_match_object(Record),
+    Result = mnesia:transaction(
+          fun () -> mnesia:match_object(Record)
+          %fun () -> mnesia:select(TupleSpace, Record, 1, read)
        end),
+
+    X = case Result of
+               {atomic, []} -> {error, nomatch};
+               {atomic, [R|_]} -> {ok, R}
+        end,
     error_logger:info_msg(">>>>>================get parameters ~p -- ~p~n", [Record, X]),
     X.
 
@@ -72,8 +78,8 @@ get(BaseTupleSpace, TemplateTuple, Timeout) ->
 %% Description: returns number of tuples
 %% Returns: number of tuples
 %%--------------------------------------------------------------------
-size(BaseTupleSpace) ->
-    mnesia:table_info(BaseTupleSpace, size).
+size(TupleSpace) ->
+    mnesia:table_info(TupleSpace, size).
 
 %%--------------------------------------------------------------------
 %% Function: put/2
@@ -81,11 +87,13 @@ size(BaseTupleSpace) ->
 %% Returns: 
 %%--------------------------------------------------------------------
 put(BaseTupleSpace, Tuple) ->
-    {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
-    %ok = mnesia:dirty_write(Record),
+    %{TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
+    Record = #basename3{one = 1, two = 2, three = 3},
+    %%%%%%%%ok = mnesia:dirty_write(Record),
     mnesia:transaction(
        fun () -> mnesia:write(Record) 
-    end).
+    end),
+    error_logger:info_msg(">>>>>================size ~p~n", [mnesia_ts:size(basename3)]).
 
 
 %%--------------------------------------------------------------------
@@ -93,8 +101,8 @@ put(BaseTupleSpace, Tuple) ->
 %% Description: deletes tuple space.
 %% Returns: 
 %%--------------------------------------------------------------------
-delete(BaseTupleSpace) ->
-    catch mnesia:delete_table(BaseTupleSpace).
+delete(TupleSpace) ->
+    catch mnesia:delete_table(TupleSpace).
 
 %%--------------------------------------------------------------------
 %% Function: delete/2
@@ -117,18 +125,29 @@ start_mnesia_if_not_running() ->
     case mnesia:system_info(is_running) of
         no -> 
             mnesia:create_schema([node()]),
-            mnesia:start();
-        yes -> false
+            mnesia:start(),
+            mnesia:create_table(basename3,
+                         [{type, duplicate_bag}, {disc_copies, [node()]},
+                          %{index, [word]},
+                          {attributes, record_info(fields,basename3)}
+                        ]),
+            io:format("********* starting mnesia.... ~n");
+        yes -> 
+            io:format("********* mnesia already running....~n"),
+            false
     end.
+
+
 new_table(TupleSpace) ->
     %mnesia:wait_for_tables(TupleSpace, 60000)
     %delete(TupleSpace),
-io:format("creating table ~p~n", [TupleSpace]),
-    mnesia:create_table(TupleSpace,
-                         [{type, duplicate_bag}, {ram_copies, [node()]}
-                          %{index, [word]},
-                          %{attributes, record_info(fields,TupleSpace)}
-                        ]).
+    io:format("creating table ~p~n", [TupleSpace]),
+    %mnesia:create_table(basename3,
+    %                     [{type, duplicate_bag}, {ram_copies, [node()]},
+    %                      %{index, [word]},
+    %                      {attributes, record_info(fields,basename3)}
+    %                    ]).
+    2.
 
 get_all(TupleSpace) ->
     {atomic, Tuples} = mnesia:transaction(fun () -> mnesia:all_keys(TupleSpace) end),
@@ -159,3 +178,7 @@ get_record(BaseName, Tuple) ->
     %end,
     new_table(RecordName),
     {RecordName, tuple_util:tuple_to_record(RecordName, Tuple)}.
+    
+
+stop() ->
+    mnesia:stop().

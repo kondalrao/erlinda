@@ -26,57 +26,44 @@
 	 ]).
 
 
--record(base3, {one, two, three}).
+%-record(base3, {one, two, three}).
 
 %%====================================================================
 %% External functions
 %%====================================================================
 test() ->
-    Record = #base3{one = 1, two = 2, three = 3},
-    {TupleSpace, XRecord} = get_record("base", {1, 2, 3}),
-    io:format("Created table ~p~n", [TupleSpace]),
+    Base = "baseName",
+    mnesia_ts:new(Base),
+    Record = {1, 2, 3},
+    io:format("Adding tuple ~p~n", [Record]),
 
-    mnesia:transaction(
-       fun () -> mnesia:write(Record) 
-    end),
+    mnesia_ts:put(Base, Record),
 
-    Size = mnesia:table_info(base3, size),
-    io:format("~p --- Size after adding ~p is ~p~n", [TupleSpace, Record, Size]),
+    Size = mnesia_ts:size(basename3),
+    io:format("Size after adding ~p is ~p~n", [Record, Size]),
 
-    %%%Template = {base3, '_', 2, '_'},
-    Template = #base3{one = '_', two = 2, three = '_'},
-    Found = mnesia:transaction(
-          fun () -> mnesia:match_object(TupleSpace, Template)
-          %fun () -> mnesia:select(TupleSpace, Template, 1, read)
-       end),
-    io:format("~p --- Found ~p~n", [Found]),
+    Template = {'_', 2, '_'},
+    {ok, Found} = mnesia_ts:get(Base, Template, 2),
+    io:format("~n--- Found ~p~n", [Found]),
 
-    mnesia:transaction(
-       fun () -> mnesia:delete(Found) 
-    end),
-
-    Size1 = mnesia:table_info(TupleSpace, size),
+    Size1 = mnesia_ts:size(basename3),
     io:format("Size after deleting ~p~n", [Size1]),
 
-    mnesia:delete_table(TupleSpace),
+    mnesia_ts:delete(Base, Found),
 
-    io:format("Deleted tuple space ~p~n", [TupleSpace]),
-
-    mnesia:stop(),
-
-    io:format("Stopped!!!!~n").
+    io:format("End!!!!~n").
 
 
-test1() ->
+testx() ->
     try 
-        debug_helper:start(),
-        %debug_helper:trace(tuple_space),
-        debug_helper:trace(ts_server),
-        debug_helper:trace(ts_mnesia),
-        %debug_helper:trace(ts_ets),
-        %debug_helper:trace(tuple_space_test),
-	%application:load(tuple_space),
-	%application:start(tuple_space),
+        %debug_helper:start(),
+        %%%%%debug_helper:trace(tuple_space),
+        %debug_helper:trace(ts_server),
+        %debug_helper:trace(ts_mnesia),
+        %%%%%debug_helper:trace(ts_ets),
+        %%%%%debug_helper:trace(tuple_space_test),
+	%%%%%application:load(tuple_space),
+	%%%%%application:start(tuple_space),
         tuple_space:start(type, ["dets_storage_tuple"]),
         {ok, Pid} = tuple_space:start(type, ["dets_storage_tuple"]),
         start_slave(Pid, 5),
@@ -146,26 +133,4 @@ listen_events() ->
         error_logger:info_msg("          listen_events didn't get any tuples in 5 minutes, trying again...~n")
     end.
 
-
-
-get_record(BaseName, Tuple) ->
-    RecordName = tuple_util:record_name(BaseName, Tuple),
-    new_table(RecordName),
-    {RecordName, tuple_util:tuple_to_record(RecordName, Tuple)}.
-
-
-new_table(TupleSpace) ->
-    mnesia:create_schema([node()]),
-    mnesia:start(),
-    io:format("creating table ~p~n", [TupleSpace]),
-    %mnesia:create_table(TupleSpace,
-    %                     [{type, duplicate_bag}, {disc_copies, [node()]}
-    %                      %{attributes, record_info(fields,TupleSpace)}
-    %                    ]).
-
-    mnesia:create_table(base3,
-                         [{type, ordered_set}, {ram_copies, [node()]},
-                          %{index, [word]},
-                          {attributes, record_info(fields,base3)}
-                        ]).
 
