@@ -1,3 +1,5 @@
+clear
+rm -rf release/local/tupledb/
 if [ $# -gt 0 ];
 then
   erlc -o lib/fslib/ebin -I lib/fslib/include lib/fslib/src/*.erl 2>/dev/null|grep -v Warning
