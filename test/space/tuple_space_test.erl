@@ -36,13 +36,12 @@ test() ->
     debug_helper:trace(ts_mnesia),
     Base = "baseName",
     mnesia_ts:new(Base),
-    Record = {1, 2, 3},
-    io:format("Adding tuple ~p~n", [Record]),
-    %%%
-    mnesia_ts:put(Base, Record),
+    mnesia_ts:get(Base, {5, 10, 15}, 2),
+    mnesia_ts:put(Base, {1, 2, 3}),
+    mnesia_ts:put(Base, {10, 20, 30}),
     %%%
     Size = mnesia_ts:size(basename3),
-    io:format("Size after adding ~p is ~p~n", [Record, Size]),
+    io:format("Size after 2 inserts ~p~n", [Size]),
     %%%
     Template = {'_', 2, '_'},
     Response = mnesia_ts:get(Base, Template, 2),
@@ -50,12 +49,12 @@ test() ->
                {ok, R} -> R;
                {error, _} -> nil
     end,
-    io:format("~n--- Found ~p~n", [Found]),
+    io:format("Found ~p~n", [Found]),
+    %%%
+    mnesia_ts:delete(Base, Found),
     %%%
     Size1 = mnesia_ts:size(basename3),
     io:format("Size after deleting ~p~n", [Size1]),
-    %%%
-    mnesia_ts:delete(Base, Found),
     %%%
     io:format("End!!!!~n").
 

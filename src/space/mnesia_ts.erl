@@ -88,11 +88,19 @@ size(TupleSpace) ->
 %%--------------------------------------------------------------------
 put(BaseTupleSpace, Tuple) ->
     {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
-    new_table(TupleSpace),
+    %new_table(TupleSpace),
     %%%%%%%%ok = mnesia:dirty_write(Record),
-    {atomic, ok} = mnesia:transaction(
+    Response = mnesia:transaction(
        fun () -> mnesia:write(Record) 
     end),
+    case Response of
+        {atomic, ok} -> ok;
+	{aborted, {no_exists, _}} ->
+    	     new_table(TupleSpace),
+    	     {atomic, ok} = mnesia:transaction(
+       		fun () -> mnesia:write(Record) 
+    	     end)
+    end,
     error_logger:info_msg("*** after adding ~p size ~p~n", [Record, mnesia_ts:size(basename3)]).
 
 
