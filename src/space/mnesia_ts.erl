@@ -16,7 +16,6 @@
 -module(mnesia_ts).
 -author("Shahzad Bhatti <bhatti@plexobject.com> [http://bhatti.plexobject.com]").
 
-
 -record(basename3, {one, two, three}).
 
 %%--------------------------------------------------------------------
@@ -27,7 +26,8 @@
 	 get/3,
 	 size/1,
 	 put/2,
-	 delete/1
+	 delete/1,
+	 delete/2
 	 ]).
 
 
@@ -59,7 +59,6 @@ get(BaseTupleSpace, TemplateTuple, Timeout) ->
     %   fun () ->
     %       end
     %   end).
-    error_logger:info_msg("----------------get parameters ~p ~n", [Record]),
     %R = mnesia:dirty_match_object(Record),
     Result = mnesia:transaction(
           fun () -> mnesia:match_object(Record)
@@ -68,10 +67,10 @@ get(BaseTupleSpace, TemplateTuple, Timeout) ->
 
     X = case Result of
                {atomic, []} -> {error, nomatch};
-               {atomic, [R|_]} -> {ok, R};
+               {atomic, [R|_]} -> {ok, tuple_util:record_to_tuple(R)};
                {aborted, _} -> {error, nomatch}
         end,
-    error_logger:info_msg(">>>>>================get parameters ~p -- ~p~n", [Record, X]),
+    error_logger:info_msg("*** get parameters ~p -- ~p~n", [Record, X]),
     X.
 
 %%--------------------------------------------------------------------
@@ -88,13 +87,13 @@ size(TupleSpace) ->
 %% Returns: 
 %%--------------------------------------------------------------------
 put(BaseTupleSpace, Tuple) ->
-    %{TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
-    Record = #basename3{one = 1, two = 2, three = 3},
+    {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
+    new_table(TupleSpace),
     %%%%%%%%ok = mnesia:dirty_write(Record),
-    mnesia:transaction(
+    {atomic, ok} = mnesia:transaction(
        fun () -> mnesia:write(Record) 
     end),
-    error_logger:info_msg(">>>>>================adding ~p size ~p~n", [Record, mnesia_ts:size(basename3)]).
+    error_logger:info_msg("*** after adding ~p size ~p~n", [Record, mnesia_ts:size(basename3)]).
 
 
 %%--------------------------------------------------------------------
@@ -112,9 +111,10 @@ delete(TupleSpace) ->
 %%--------------------------------------------------------------------
 delete(BaseTupleSpace, Tuple) ->
     {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
-    mnesia:transaction(
-       fun () -> mnesia:delete(Record) 
-    end).
+    {atomic, ok} = mnesia:transaction(
+       fun () -> mnesia:delete_object(Record) 
+    end),
+    error_logger:info_msg("*** deleted ~p -- ~p~n", [Tuple, mnesia_ts:size(basename3)]).
 
 
 
@@ -127,14 +127,9 @@ start_mnesia_if_not_running() ->
         no -> 
             mnesia:create_schema([node()]),
             mnesia:start(),
-            mnesia:create_table(basename3,
-                         [{type, duplicate_bag}, {disc_copies, [node()]},
-                          %{index, [word]},
-                          {attributes, record_info(fields,basename3)}
-                        ]),
-            io:format("********* starting mnesia.... ~n");
+    	    error_logger:info_msg("********* starting mnesia.... ~n");
         yes -> 
-            io:format("********* mnesia already running....~n"),
+    	    error_logger:info_msg("********* mnesia already running....~n"),
             false
     end.
 
@@ -142,13 +137,12 @@ start_mnesia_if_not_running() ->
 new_table(TupleSpace) ->
     %mnesia:wait_for_tables(TupleSpace, 60000)
     %delete(TupleSpace),
-    io:format("creating table ~p~n", [TupleSpace]),
-    %mnesia:create_table(basename3,
-    %                     [{type, duplicate_bag}, {ram_copies, [node()]},
-    %                      %{index, [word]},
-    %                      {attributes, record_info(fields,basename3)}
-    %                    ]).
-    2.
+    {atomic, ok} = mnesia:create_table(TupleSpace,
+                         [{type, bag}, {disc_copies, [node()]},
+                          %{index, [word]},
+                          {attributes, record_info(fields,basename3)}
+                        ]),
+    error_logger:info_msg("*** created table ~p~n", [TupleSpace]).
 
 get_all(TupleSpace) ->
     {atomic, Tuples} = mnesia:transaction(fun () -> mnesia:all_keys(TupleSpace) end),
@@ -170,14 +164,14 @@ mnesia_dir() ->
 
 get_record(BaseName, Tuple) ->
     RecordName = tuple_util:record_name(BaseName, Tuple),
-    %try
-    %    X = mnesia:table_info(RecordName, version),
-    %catch   
-    %    throw:Term -> new_table(RecordName);
-    %    exit:Reason -> new_table(RecordName);
-    %    error:Reason -> new_table(RecordName)
-    %end,
-    new_table(RecordName),
+      %try
+      %    X = mnesia:table_info(RecordName, version),
+      %catch   
+      %    throw:Term -> new_table(RecordName);
+      %    exit:Reason -> new_table(RecordName);
+      %    error:Reason -> new_table(RecordName)
+      %end,
+    %new_table(RecordName),
     {RecordName, tuple_util:tuple_to_record(RecordName, Tuple)}.
     
 

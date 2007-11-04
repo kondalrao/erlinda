@@ -32,6 +32,8 @@
 %% External functions
 %%====================================================================
 test() ->
+    debug_helper:start(),
+    debug_helper:trace(ts_mnesia),
     Base = "baseName",
     mnesia_ts:new(Base),
     Record = {1, 2, 3},
@@ -43,12 +45,11 @@ test() ->
     io:format("Size after adding ~p is ~p~n", [Record, Size]),
     %%%
     Template = {'_', 2, '_'},
-     = case Result of
-               {atomic, []} -> {error, nomatch};
-               {atomic, [R|_]} -> {ok, R};
-               {aborted, _} -> {error, nomatch}
-        end,
-    {ok, Found} = mnesia_ts:get(Base, Template, 2),
+    Response = mnesia_ts:get(Base, Template, 2),
+    Found = case Response of
+               {ok, R} -> R;
+               {error, _} -> nil
+    end,
     io:format("~n--- Found ~p~n", [Found]),
     %%%
     Size1 = mnesia_ts:size(basename3),
