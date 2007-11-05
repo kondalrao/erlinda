@@ -16,7 +16,7 @@
 -module(mnesia_ts).
 -author("Shahzad Bhatti <bhatti@plexobject.com> [http://bhatti.plexobject.com]").
 
--record(basename3, {one, two, three}).
+%-record(tuple_space_entry, {tuple_key, tuple_space_name, tuple, duplicate_count}).
 
 %%--------------------------------------------------------------------
 %% External exports for APIs
@@ -101,7 +101,7 @@ put(BaseTupleSpace, Tuple) ->
        		fun () -> mnesia:write(Record) 
     	     end)
     end,
-    error_logger:info_msg("*** after adding ~p size ~p~n", [Record, mnesia_ts:size(basename3)]).
+    error_logger:info_msg("*** after adding ~p size ~p~n", [Record, mnesia_ts:size(tuple_space_entry)]).
 
 
 %%--------------------------------------------------------------------
@@ -122,7 +122,7 @@ delete(BaseTupleSpace, Tuple) ->
     {atomic, ok} = mnesia:transaction(
        fun () -> mnesia:delete_object(Record) 
     end),
-    error_logger:info_msg("*** deleted ~p -- ~p~n", [Tuple, mnesia_ts:size(basename3)]).
+    error_logger:info_msg("*** deleted ~p -- ~p~n", [Tuple, mnesia_ts:size(TupleSpace)]).
 
 
 
@@ -146,9 +146,9 @@ new_table(TupleSpace) ->
     %mnesia:wait_for_tables(TupleSpace, 60000)
     %delete(TupleSpace),
     {atomic, ok} = mnesia:create_table(TupleSpace,
-                         [{type, bag}, {disc_copies, [node()]},
+                         [{type, bag}, {disc_copies, [node()]}
                           %{index, [word]},
-                          {attributes, record_info(fields,basename3)}
+                          %{attributes, record_info(fields,TupleSpace)}
                         ]),
     error_logger:info_msg("*** created table ~p~n", [TupleSpace]).
 
