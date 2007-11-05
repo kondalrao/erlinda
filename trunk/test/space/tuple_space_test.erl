@@ -32,34 +32,6 @@
 %% External functions
 %%====================================================================
 test() ->
-    debug_helper:start(),
-    debug_helper:trace(ts_mnesia),
-    Base = "baseName",
-    mnesia_ts:new(Base),
-    mnesia_ts:get(Base, {5, 10, 15}, 2),
-    mnesia_ts:put(Base, {1, 2, 3}),
-    mnesia_ts:put(Base, {10, 20, 30}),
-    %%%
-    Size = mnesia_ts:size(basename3),
-    io:format("Size after 2 inserts ~p~n", [Size]),
-    %%%
-    Template = {'_', 2, '_'},
-    Response = mnesia_ts:get(Base, Template, 2),
-    Found = case Response of
-               {ok, R} -> R;
-               {error, _} -> nil
-    end,
-    io:format("Found ~p~n", [Found]),
-    %%%
-    mnesia_ts:delete(Base, Found),
-    %%%
-    Size1 = mnesia_ts:size(basename3),
-    io:format("Size after deleting ~p~n", [Size1]),
-    %%%
-    io:format("End!!!!~n").
-
-
-testx() ->
     try 
         %debug_helper:start(),
         %%%%%debug_helper:trace(tuple_space),
