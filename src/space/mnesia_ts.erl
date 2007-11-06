@@ -16,7 +16,7 @@
 -module(mnesia_ts).
 -author("Shahzad Bhatti <bhatti@plexobject.com> [http://bhatti.plexobject.com]").
 
-%-record(tuple_space_entry, {tuple_key, tuple_space_name, tuple, duplicate_count}).
+-record(tuple_space_entry, {tuple_key, tuple_space_name, tuple, duplicate_count}).
 
 %%--------------------------------------------------------------------
 %% External exports for APIs
@@ -36,9 +36,13 @@
 %% Description: news a new mnesia table
 %% Returns: tuple space name
 %%--------------------------------------------------------------------
-new(BaseTupleSpaceName) -> 
+new(TupleSpace) when is_atom(TupleSpace) ->
     start_mnesia_if_not_running(),
-    BaseTupleSpaceName.
+    new_table(TupleSpace),
+    TupleSpace;
+new(TupleSpaceName) ->
+    start_mnesia_if_not_running(),
+    TupleSpaceName.
 
 
 %%--------------------------------------------------------------------
@@ -48,37 +52,30 @@ new(BaseTupleSpaceName) ->
 %% Returns: {ok, Tuple} |
 %%%         {error, nomatch}
 %%--------------------------------------------------------------------
-get(BaseTupleSpace, TemplateTuple, Timeout) ->
+get(BaseTupleSpace, TemplateTuple, Timeout) when is_list(BaseTupleSpace), is_tuple(TemplateTuple), is_number(Timeout) ->
     {TupleSpace, Record} = get_record(BaseTupleSpace, TemplateTuple),
-    %mnesia:abort({vhost_already_exists, VHostPath})
-    % mnesia:dirty_read(TemplateTuple),
-    % mnesia:index_read(TemplateTuple, TemplateTuple, TemplateTuple)
-    % mnesia:wread(TemplateTuple),
-
-    %mnesia:transaction(
-    %   fun () ->
-    %       end
-    %   end).
+    get(TupleSpace, Record, Timeout);
+get(TupleSpace, Record, Timeout) when is_atom(TupleSpace), is_tuple(Record), is_number(Timeout) ->
+    % mnesia:dirty_read(TemplateTuple), % mnesia:index_read(TemplateTuple, TemplateTuple, TemplateTuple) % mnesia:wread(TemplateTuple),
     %R = mnesia:dirty_match_object(Record),
     Result = mnesia:transaction(
-          fun () -> mnesia:match_object(Record)
-          %fun () -> mnesia:select(TupleSpace, Record, 1, read)
+          fun () -> mnesia:match_object(Record)                 %mnesia:select(TupleSpace, Record, 1, read)
        end),
 
-    X = case Result of
+    Reply = case Result of
                {atomic, []} -> {error, nomatch};
-               {atomic, [R|_]} -> {ok, tuple_util:record_to_tuple(R)};
+               {atomic, [R|_]} -> {ok, R};      %tuple_util:record_to_tuple(R)};
                {aborted, _} -> {error, nomatch}
         end,
-    error_logger:info_msg("*** get parameters ~p -- ~p~n", [Record, X]),
-    X.
+    error_logger:info_msg("*** get parameters ~p -- ~p~n", [Record, Reply]),
+    Reply.
 
 %%--------------------------------------------------------------------
 %% Function: size/1
 %% Description: returns number of tuples
 %% Returns: number of tuples
 %%--------------------------------------------------------------------
-size(TupleSpace) ->
+size(TupleSpace) when is_atom(TupleSpace) ->
     mnesia:table_info(TupleSpace, size).
 
 %%--------------------------------------------------------------------
@@ -86,9 +83,10 @@ size(TupleSpace) ->
 %% Description: adds a tuple to the tuple space.
 %% Returns: 
 %%--------------------------------------------------------------------
-put(BaseTupleSpace, Tuple) ->
+put(BaseTupleSpace, Tuple) when is_list(BaseTupleSpace), is_tuple(Tuple) ->
     {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
-    %new_table(TupleSpace),
+    put(TupleSpace, Record);
+put(TupleSpace, Record) when is_atom(TupleSpace), is_tuple(Record) ->
     %%%%%%%%ok = mnesia:dirty_write(Record),
     Response = mnesia:transaction(
        fun () -> mnesia:write(Record) 
@@ -96,12 +94,13 @@ put(BaseTupleSpace, Tuple) ->
     case Response of
         {atomic, ok} -> ok;
 	{aborted, {no_exists, _}} ->
+             error_logger:info_msg("*** Unexpectedly creating table ~p -- ~p ~n", [TupleSpace, Response]),
     	     new_table(TupleSpace),
     	     {atomic, ok} = mnesia:transaction(
        		fun () -> mnesia:write(Record) 
     	     end)
     end,
-    error_logger:info_msg("*** after adding ~p size ~p~n", [Record, mnesia_ts:size(tuple_space_entry)]).
+    error_logger:info_msg("*** after adding ~p size ~p~n", [Record, mnesia_ts:size(TupleSpace)]).
 
 
 %%--------------------------------------------------------------------
@@ -109,7 +108,7 @@ put(BaseTupleSpace, Tuple) ->
 %% Description: deletes tuple space.
 %% Returns: 
 %%--------------------------------------------------------------------
-delete(TupleSpace) ->
+delete(TupleSpace) when is_atom(TupleSpace) ->
     catch mnesia:delete_table(TupleSpace).
 
 %%--------------------------------------------------------------------
@@ -117,12 +116,14 @@ delete(TupleSpace) ->
 %% Description: deletes a tuple from tuple space.
 %% Returns: 
 %%--------------------------------------------------------------------
-delete(BaseTupleSpace, Tuple) ->
+delete(BaseTupleSpace, Tuple) when is_list(BaseTupleSpace), is_tuple(Tuple) ->
     {TupleSpace, Record} = get_record(BaseTupleSpace, Tuple),
+    delete(TupleSpace, Record);
+delete(TupleSpace, Record) when is_atom(TupleSpace), is_tuple(Record) ->
     {atomic, ok} = mnesia:transaction(
        fun () -> mnesia:delete_object(Record) 
     end),
-    error_logger:info_msg("*** deleted ~p -- ~p~n", [Tuple, mnesia_ts:size(TupleSpace)]).
+    error_logger:info_msg("*** deleted ~p -- ~p~n", [Record, mnesia_ts:size(TupleSpace)]).
 
 
 
@@ -141,14 +142,12 @@ start_mnesia_if_not_running() ->
             false
     end.
 
-
 new_table(TupleSpace) ->
     %mnesia:wait_for_tables(TupleSpace, 60000)
-    %delete(TupleSpace),
     {atomic, ok} = mnesia:create_table(TupleSpace,
-                         [{type, bag}, {disc_copies, [node()]}
+                         [{type, bag}, {disc_copies, [node()]},
                           %{index, [word]},
-                          %{attributes, record_info(fields,TupleSpace)}
+                          {attributes, record_info(fields,tuple_space_entry)}
                         ]),
     error_logger:info_msg("*** created table ~p~n", [TupleSpace]).
 
