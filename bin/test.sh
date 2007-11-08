@@ -17,8 +17,9 @@ then
   echo erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin 
   erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin 
 else
-  echo erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s tuple_space_test test -s init stop
+  echo erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s multi_tuple_space_test test -s init stop
+  erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s multi_tuple_space_test test -s init stop
   #erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s tuple_space_test test -s init stop
-  erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s mnesia_ts_test test -s init stop
+  #erl -boot start_sasl -mnesia dir tupledb -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s mnesia_ts_test test -s init stop
   #######erl -boot start_sasl -sname node1 -config erlinda_rel.config -pz ../../ebin -noshell -s tuple_util_test test -s init stop
 fi;
