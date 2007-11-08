@@ -33,6 +33,7 @@
 %%====================================================================
 test() ->
     try 
+        error_logger:info_msg("          ****Multi Begin...~n"),
         %debug_helper:start(),
         %%%%%debug_helper:trace(multi_tuple_space),
         %debug_helper:trace(ts_server),
@@ -47,9 +48,9 @@ test() ->
         start_subscriber(Pid),
         sleep(1000), % let it register
         start_master(Pid, 5),
-        error_logger:info_msg("          ****Finished starting...~n"),
+        error_logger:info_msg("          ****Multi Finished starting...~n"),
         sleep(5000),
-        error_logger:info_msg("          ****Last Size of tuple space ~p~n", [multi_tuple_space:size(Pid)])
+        error_logger:info_msg("          ****Multi Last Size of tuple space ~p~n", [multi_tuple_space:size(Pid)])
     catch
         Ex ->
             io:format("test caught ~p~n", [Ex])
