@@ -13,14 +13,13 @@
 %% 
 %% @end
 %%%-------------------------------------------------------------------
--module(ts_server).
+-module(multi_ts_server).
 -author("Shahzad Bhatti <bhatti@plexobject.com> [http://bhatti.plexobject.com]").
 
 -behaviour(gen_server).
 %%--------------------------------------------------------------------
 %% Include files
 %%--------------------------------------------------------------------
--include("tuple_space.hrl").
 
 %%--------------------------------------------------------------------
 %% External exports
@@ -51,14 +50,13 @@
 %%--------------------------------------------------------------------
 %% record definitions
 %%--------------------------------------------------------------------
--record(state, {tuple_space, subscriptions=dict:new(), timers=[]}).
+-record(state, {nodes=[]}).
 
 
 %%--------------------------------------------------------------------
 %% macro definitions
 %%--------------------------------------------------------------------
 -define(SERVER, ?MODULE).
--define(TUPLE_SPACE_PROVIDER, ets_ts).   %% ets_ts, dets_ts, mnesia_ts
 
 %%====================================================================
 %% External functions
@@ -164,9 +162,9 @@ subscribe(Pid, TemplateTuple) ->
 %%--------------------------------------------------------------------
 init([]) ->
     process_flag(trap_exit, true),
-    error_logger:info_msg("ts_server:init/1 starting ~n"),
-    TupleSpace = ?TUPLE_SPACE_PROVIDER:new("TupleSpaceName"),
-    {ok, #state{tuple_space = TupleSpace}}.
+    error_logger:info_msg("multi_ts_server:init/1 starting ~n"),
+    Nodes = [node()],
+    {ok, #state{nodes = Nodes}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_call/3
@@ -179,33 +177,18 @@ init([]) ->
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
 handle_call({get, {TemplateTuple, Timeout}}, From, State) ->
-    TupleSpace = State#state.tuple_space,
-    Resp = ?TUPLE_SPACE_PROVIDER:get(TupleSpace, TemplateTuple, Timeout),
-    case Resp of 
-        {error, nomatch} ->
-            NewSubscriptions = dict:store(TemplateTuple, {From, true}, State#state.subscriptions),
-	    NewTimer = start_timeout_timer(From, TemplateTuple, Timeout),
-            NewState = State#state{subscriptions = NewSubscriptions, timers = [NewTimer|State#state.timers]},
-            {noreply, NewState};
-        {ok, _} ->
-            {reply, Resp, State}
-    end;
+    Node = get_node(TemplateTuple, State),
+    {reply, Node, State};
 
 handle_call({size, {}}, From, State) ->
-io:format("finding size...~n"),
-    TupleSpace = State#state.tuple_space,
-    Size = ?TUPLE_SPACE_PROVIDER:size(TupleSpace),
-io:format("found size ~p~n", [Size]),
-    {reply, {ok, Size}, State};
+    {reply, 2, State};
 
 handle_call({crash, {}}, From, State) ->
     1 = 2;
 
 handle_call({subscribe, {TemplateTuple, Subscriber}}, From, State) ->
-    TupleSpace = State#state.tuple_space,
-    NewSubscriptions = dict:store(TemplateTuple, {Subscriber, false}, State#state.subscriptions),
-    NewState = State#state{subscriptions = NewSubscriptions},
-    {reply, true, NewState};
+    Node = get_node(TemplateTuple, State),
+    {reply, Node, State};
 
 handle_call(Request, From, State) ->
     Reply = ok,
@@ -225,11 +208,8 @@ handle_cast(stop, State) ->
     {stop, normal, State};
 
 handle_cast({put, Tuple}, State) -> 
-    TupleSpace = State#state.tuple_space,
-    ?TUPLE_SPACE_PROVIDER:put(TupleSpace, Tuple),
-    {Tuple, NewSubscriptions} = dict:fold(fun notify_tuple_added/3, {Tuple, State#state.subscriptions}, State#state.subscriptions),
-    NewState = State#state{subscriptions = NewSubscriptions},
-    {noreply, NewState};
+    Node = get_node(Tuple, State),
+    {noreply, State};
 handle_cast(Msg, State) ->
     {noreply, State}.
 
@@ -242,15 +222,7 @@ handle_cast(Msg, State) ->
 %%          {stop, Reason, State}            (terminate/2 is called)
 %%--------------------------------------------------------------------
 handle_info({'EXIT', Pid, Reason}, State) ->
-    cleanup(State),
-    %unlink(Res),
-    %exit(Res, Reason),
     {noreply, State};
-handle_info({timedout, From, TemplateTuple}, State) ->
-    gen_server:reply(From, {timedout, TemplateTuple}),
-    NewSubscriptions = dict:erase(TemplateTuple, State#state.subscriptions),
-    NewState = State#state{subscriptions = NewSubscriptions},
-    {noreply, NewState};
 handle_info(Info, State) ->
     {noreply, State}.
 
@@ -260,8 +232,7 @@ handle_info(Info, State) ->
 %% Returns: any (ignored by gen_server)
 %%--------------------------------------------------------------------
 terminate(Reason, State) ->
-    error_logger:info_msg("ts_server:terminate/2 shutting down.~n", []),
-    cleanup(State),
+    error_logger:info_msg("multi_ts_server:terminate/2 shutting down.~n", []),
     ok.
 
 %%--------------------------------------------------------------------
@@ -275,76 +246,8 @@ code_change(OldVsn, State, Extra) ->
 %%====================================================================
 %%% Internal functions
 %%====================================================================
-
-%%
-%%% notifies subscribers, where permanent subscribers are the processes
-%%% that explicitly subscribed and temporary subscribers are the ones
-%%% that just issue blocking get or read and wait for response and 
-%%% their subscriptions is removed after tuple matches.
-%%
-notify_tuple_added(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) when TemporarySubscriber ->
-    NewSubscriptions = case tuple_util:matches_tuple(TemplateTuple, Tuple) of
-        true ->
-            gen_server:reply(From, {ok, Tuple}),
-            error_logger:info_msg("notify_tuple_added matched tuple ~p for ~p, will delete now~n", [Tuple, From]),
-            dict:erase(TemplateTuple, Subscriptions);
-        false ->
-            Subscriptions
-    end,
-    {Tuple, NewSubscriptions};
-notify_tuple_added(TemplateTuple, {From, TemporarySubscriber}, {Tuple, Subscriptions}) ->
-    case tuple_util:matches_tuple(TemplateTuple, Tuple) of
-        true ->
-            error_logger:info_msg("notify_tuple_added matched tuple ~p for ~p~n", [Tuple, From]),
-            From ! {tuple_added, Tuple};
-        false ->
-            false
-    end,
-    {Tuple, Subscriptions}.
-
-%%
-%%% this method notifies subscribers that the server is terminated.
-%%
-notify_server_terminated(_, {From, _TempSubscription}, _) ->
-    error_logger:info_msg("notifying subscriber that server is dead ~p~n", [From]),
-    catch From ! {server_terminated}.
-
-
-%%
-%%% this starts a process that waits and if the matching tuple is not found
-%%% we send back timeout error
-%%
-start_timeout_timer(From, TemplateTuple, Timeout) when Timeout > 0 ->
-    %%%% spawn_link is creating dump
-    spawn(fun() -> timeout_loop(From, TemplateTuple, Timeout) end);
-start_timeout_timer(From, TemplateTuple, Timeout) ->
-    true.
-timeout_loop(From, TemplateTuple, Timeout) ->
-    receive 
-        {cancel_timer} ->
-            exit(cancel_timer);
-	Any ->
-             error_logger:info_msg("timeout_loop unknown event ~p ~n", [Any]),
-	     timeout_loop(From, TemplateTuple, Timeout)
-    after Timeout -> 
-        ?SERVER ! {timedout, From, TemplateTuple}
-    end.
-    
-%%
-%%% this method terminates any timers that are running.
-%%% we send back timeout error
-%%
-terminate_timers(Timer) ->
-    %error_logger:info_msg("cancelling timer ~p~n", [Timer]),
-    catch Timer ! {cancel_timer}.
-
-
-%%
-%%% this method cleans up resources when the server dies
-%%
-cleanup(State) ->
-    TupleSpace = State#state.tuple_space,
-    catch ?TUPLE_SPACE_PROVIDER:delete(TupleSpace),
-    %%%
-    catch dict:fold(fun notify_server_terminated/3, nil, State#state.subscriptions),
-    catch lists:foreach(fun terminate_timers/1, State#state.timers).
+get_node(Tuple, State) ->
+    TupleList = tuple_to_list(Tuple), 
+    Nodes = State#state.nodes,
+    NodeIndex = erlang:hash(lists:nth(1, TupleList), length(TupleList)) rem length(Nodes),
+    lists:nth(NodeIndex, Nodes).
