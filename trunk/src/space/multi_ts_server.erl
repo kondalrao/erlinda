@@ -250,4 +250,4 @@ get_node(Tuple, State) ->
     TupleList = tuple_to_list(Tuple), 
     Nodes = State#state.nodes,
     NodeIndex = erlang:hash(lists:nth(1, TupleList), length(TupleList)) rem length(Nodes),
-    lists:nth(NodeIndex, Nodes).
+    lists:nth(NodeIndex+1, Nodes).

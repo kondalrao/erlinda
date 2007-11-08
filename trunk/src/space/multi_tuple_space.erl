@@ -66,8 +66,8 @@
 %% @end
 %%--------------------------------------------------------------------
 start(Type, StartArgs) ->
-    case ts_server:start_link(StartArgs) of
-    %case ts_sup:start_link(StartArgs) of
+    case multi_ts_server:start_link(StartArgs) of
+    %case multi_ts_sup:start_link(StartArgs) of
 	{ok, Pid} -> 
 	    {ok, Pid};
 	Error ->
@@ -94,7 +94,7 @@ shutdown() ->
 %% @end
 %%--------------------------------------------------------------------
 put(Pid, Tuple) ->
-    ts_server:put(Pid, Tuple).
+    multi_ts_server:put(Pid, Tuple).
 
 %%--------------------------------------------------------------------
 %% @doc Removes a matching tuple and returns it. If the no tuple
@@ -111,7 +111,7 @@ put(Pid, Tuple) ->
 %% @end
 %%--------------------------------------------------------------------
 get(Pid, TemplateTuple, Timeout) ->
-    ts_server:get(Pid, TemplateTuple, Timeout).
+    multi_ts_server:get(Pid, TemplateTuple, Timeout).
 
 
 %%--------------------------------------------------------------------
@@ -125,10 +125,10 @@ get(Pid, TemplateTuple, Timeout) ->
 %% @end
 %%--------------------------------------------------------------------
 size(Pid) -> 
-    ts_server:size(Pid).
+    multi_ts_server:size(Pid).
 
 crash(Pid) -> 
-    ts_server:crash(Pid).
+    multi_ts_server:crash(Pid).
 
 %%--------------------------------------------------------------------
 %% @doc Subscribes the caller to notifications of tuple change for
@@ -145,7 +145,7 @@ crash(Pid) ->
 %% @end
 %%--------------------------------------------------------------------
 subscribe(Pid, TemplateTuple) ->
-    ts_server:subscribe(Pid, TemplateTuple).
+    multi_ts_server:subscribe(Pid, TemplateTuple).
 
 
 %%====================================================================
