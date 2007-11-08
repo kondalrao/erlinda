@@ -66,8 +66,8 @@
 %% @end
 %%--------------------------------------------------------------------
 start(Type, StartArgs) ->
-    case multi_ts_server:start_link(StartArgs) of
-    %case multi_ts_sup:start_link(StartArgs) of
+    %case multi_ts_server:start_link(StartArgs) of
+    case multi_ts_sup:start_link(StartArgs) of
 	{ok, Pid} -> 
 	    {ok, Pid};
 	Error ->

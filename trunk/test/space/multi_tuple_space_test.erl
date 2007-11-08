@@ -42,8 +42,7 @@ test() ->
         %%%%%debug_helper:trace(multi_tuple_space_test),
 	%%%%%application:load(multi_tuple_space),
 	%%%%%application:start(multi_tuple_space),
-        multi_tuple_space:start(type, ["dets_storage_tuple"]),
-        {ok, Pid} = multi_tuple_space:start(type, ["dets_storage_tuple"]),
+        {ok, Pid} = multi_tuple_space:start(type, ["multi_name_for_storage_tuple"]),
         start_slave(Pid, 5),
         start_subscriber(Pid),
         sleep(1000), % let it register
